@@ -148,32 +148,17 @@ class tm:
             vec2: vector Y
             vec3: vector Z
         """
-        tmn = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0],[0, 0, 0, 1]])
-        #print(tmn)
-        #t2= qy * qz * qx
-        t3 = tm(tmn) @ self
-        xax = t3 @ tm([1, 0, 0, 0, 0, 0]) #Best so far -1, 1, -1
-        yax = t3 @ tm([0, -1, 0, 0, 0, 0])
-        zax = t3 @ tm([0, 0, 1, 0, 0, 0])
-        vec1 = mr.Normalize((-t3[0:3] + xax[0:3]).reshape((3)))
-        vec2 = mr.Normalize((-t3[0:3] + yax[0:3]).reshape((3)))
-        vec3 = mr.Normalize((-t3[0:3] + zax[0:3]).reshape((3)))
+        xvec = np.zeros(6)
+        yvec = np.zeros(6)
+        zvec = np.zeros(6)
+        
+        xvec[0:3] = self.TM[0:3,0].flatten()
+        yvec[0:3] = self.TM[0:3,1].flatten()
+        zvec[0:3] = self.TM[0:3,2].flatten()
 
-        t3 = tm(tmn) @ self
-        xax = self @ tm([1, 0, 0, 0, 0, 0]) #Best so far -1, 1, -1
-        yax = self @ tm([0, -1, 0, 0, 0, 0])
-        zax = self @ tm([0, 0, 1, 0, 0, 0])
-        #xax = tm(tmn) @ xax
-        #yax = tm(tmn) @ yax
-        #yax = tm(tmn) @ zax
-        #vec1 = (-self[0:3] + xax[0:3]).reshape((3))
-        #vec2 = (-self[0:3] + yax[0:3]).reshape((3))
-        #vec3 = (-self[0:3] + zax[0:3]).reshape((3))
-
-
-        vec1[1] = - vec1[1]
-        vec2[1] = - vec2[1]
-        vec3[1] = - vec3[1]
+        vec1 = self + tm(xvec)
+        vec2 = self + tm(yvec)
+        vec3 = self + tm(zvec)
 
         return vec1, vec2, vec3
 
@@ -208,9 +193,9 @@ class tm:
         Returns:
             Omega
         """
-        return 1/(2*np.sin(self.getTheta())) *
+        return (1/(2*np.sin(self.getTheta())) *
             np.array([self.TM[2,1]-self.TM[1,2], self.TM[0,2]
-            -self.TM[2,0], self.TM[1,0] -self.TM[0,1]])
+            -self.TM[2,0], self.TM[1,0] -self.TM[0,1]]))
 
     def getQuaternion(self):
         """

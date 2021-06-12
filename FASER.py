@@ -68,10 +68,8 @@ def PlaneTMSFromOne(tm1):
     Returns:
         a, b, c: Plane basis points
     """
-    b = tm1 @ tm([1, 0, 0, 0, 0, 0])
-    c = tm1 @ tm([0, 1, 0, 0, 0, 0])
-    a = tm1
-    return a, b, c
+    a, b, x = tm1.TripleUnit()
+    return tm1, b, c
 
 def Mirror(origin, mirrorPoint):
     """
@@ -97,6 +95,13 @@ def Mirror(origin, mirrorPoint):
     return tm([x3, y3, z3, 0, 0, 0])
 
 def TAAtoTMLegacy(transaa):
+    """
+    Transforms a TAA representation to a TM one
+    Args:
+        transaa: taa representation
+    Returns:
+        tm: TM representation
+    """
     transaa = transaa.reshape((6))
     mres = mrs.MatrixExp3(mrs.VecToso3(transaa[3:6]))
     #return mr.RpToTrans(mres,transaa[0:3])
@@ -106,6 +111,13 @@ def TAAtoTMLegacy(transaa):
     return tm
 
 def TMtoTAA(tm):
+    """
+    Converts a 4x4 transformation matrix to TAA representation
+    Args:
+        tm: tm to be convverted
+    Returns:
+        TAA representation
+    """
     tm, trans =  mr.TransToRp(tm)
     ta = mr.so3ToVec(mr.MatrixLog3(tm))
     return np.vstack((trans.reshape((3,1)), AngleMod(ta.reshape((3,1)))))
@@ -316,6 +328,15 @@ def BoxSpatialInertia(m, l, w, h):
     return Gbox
 
 def unitSphere(num_points):
+    """
+    Generates a "unit sphere" with an approximate number of points
+    numActual = round(num_points)^2
+    Args:
+        num_points: Approximate number of points to collect
+    Returns:
+        xyzcoords: points in cartesian coordinates
+        azel: coords in azimuth/elevation notation
+    """
     xyzcoords = []
     azel = []
     azr = round(math.sqrt(num_points))
@@ -390,6 +411,23 @@ def SetElements(data,inds,vals):
     return res
 
 def EKF(meant_1, covt_1, ctrlt, meast, gfn, hfn, dgdx, dgdu, dhdx, dhdv):
+    """
+    Extended Kalman Filter Iteration
+    Args:
+        meant_1:
+        covt_1:
+        ctrlt:
+        meast:
+        gfn:
+        hfn:
+        dgdx:
+        dgdu:
+        dhdx:
+        dhdv:
+    Returns:
+        meant:
+        covt:
+    """
     predmeant = gfn(ctrlt,meant_1)
     Gt = dgdx(ctrlt,meant_1)
     Rt = dgdu(ctrlt,meant_1)
@@ -405,6 +443,14 @@ def EKF(meant_1, covt_1, ctrlt, meast, gfn, hfn, dgdx, dgdu, dhdx, dhdv):
 
 #Jacobians
 def ChainJacobian(screws, theta):
+    """
+    Chain Jacobian
+    Args:
+        Screws: screw list
+        theta: theta to evaluate at
+    Returns:
+        jac: chain jacobian
+    """
     jac = np.zeros((6, np.size(theta)))
     T = np.eye(4)
     Jac[0:6,0] = screws[0:6,0]
@@ -415,8 +461,14 @@ def ChainJacobian(screws, theta):
     return jac
 
 def delMini(arr):
-    #Deletes subarrays of dimension 1
-    #Requires 2d array
+    """
+    Deletes subarrays of dimension 1
+    Requires 2d array
+    Args:
+        arr: array to prune
+    Returns:
+        newarr: pruned array
+    """
 
     s = arr.shape
     newarr = np.zeros((s))
@@ -427,6 +479,15 @@ def delMini(arr):
 
 
 def NumJac(f, x0, h):
+    """
+    Calculates a numerical jacobian
+    Args:
+        f: function handle (FK)
+        x0: initial value
+        h: delta value
+    Returns:
+        dfdx: numerical Jacobian
+    """
     x0p = np.copy(x0)
     x0p[0] = x0p[0] + h
     x0m = np.copy(x0)
