@@ -34,6 +34,15 @@ def TAAtoTM(transaa):
     return tm
 
 def PlaneFrom3Tms(tm1, tm2, tm3):
+    """
+    Creates the equation of a plane from three points
+    Args:
+        tm1: tm or vector for point 1
+        tm2: tm or vector for point 2
+        tm3: tm or vector for point 3
+    Returns:
+        a, b, c, d: equation cooficients of a plane
+    """
     p1 = np.array(tm1[0:3]).flatten()
     p2 = np.array(tm2[0:3]).flatten()
     p3 = np.array(tm3[0:3]).flatten()
@@ -52,12 +61,27 @@ def PlaneFrom3Tms(tm1, tm2, tm3):
     return a, b, c, d
 
 def PlaneTMSFromOne(tm1):
+    """
+    Create plane TM points from one Transform (using unit vectors)
+    Args:
+        tm1: transform to place plane on
+    Returns:
+        a, b, c: Plane basis points
+    """
     b = tm1 @ tm([1, 0, 0, 0, 0, 0])
     c = tm1 @ tm([0, 1, 0, 0, 0, 0])
     a = tm1
     return a, b, c
 
 def Mirror(origin, mirrorPoint):
+    """
+    Mirrors a point about a plane
+    Args:
+        origin: point at origin
+        mirrorPoint: tm describing plane to mirror over
+    Returns:
+        mirrored Point
+    """
     t1, t2, t3 = PlaneTMSFromOne(origin)
     a, b, c, d = PlaneFrom3Tms(t1, t2, t3)
     x1 = mirrorPoint[0]
@@ -92,37 +116,16 @@ def TMtoTAALegacy(tm):
     return np.vstack((trans.reshape((3,1)), AngleMod(ta.reshape((3,1)))))
 
 def LocalToGlobal(reference, rel):
-    #refPos = reference[0:3]
-    #refRod = reference[3:6]
-    #relPos = rel[0:3]
-    #relRod = rel[3:6]
-    #rodRefRod = mr.MatrixExp3(mr.VecToso3(refRod.reshape((3))))
-    #pos = refPos + (rodRefRod @ relPos)
-    #trod = mr.MatrixExp3(mr.VecToso3(relRod.reshape((3))))
-    #rod = mr.so3ToVec(mr.MatrixLog3(rodRefRod @ trod))
     return tm(mr.LocalToGlobal(reference.gTAA(), rel.gTAA()))
-    #return tm(np.vstack((pos.reshape((3,1)), rod.reshape((3,1)))).reshape((6,1)))
 
 def GlobalToLocal(reference, rel):
-    #refPos = reference[0:3]
-    #refRod = reference[3:6]
-    #relPos = rel[0:3]
-    #relRod = rel[3:6]
-
-    #rodRefRod = mr.MatrixExp3(mr.VecToso3(refRod.reshape((3))))
-    #locPos = rodRefRod.conj().T @ (relPos - refPos)
-    #tRod = mr.MatrixExp3(mr.VecToso3(relRod.reshape((3))))
-    #locRod = mr.so3ToVec(mr.MatrixLog3(rodRefRod.conj().T @ tRod))
-    #print(locRod, "interest")
     return tm(mr.GlobalToLocal(reference.gTAA(), rel.gTAA()))
-    #return tm(np.vstack((locPos.reshape((3,1)), locRod.reshape((3,1)))).reshape((6,1)))
 
 def TrVec(TM,vec):
     #Performs tv = TM*vec and removes the 1
     TM = TM.TM
     b = np.array([1.0])
     n = np.concatenate((vec,b))
-    #print(n, title="n")
     trvh = TM @ n
     return trvh[0:3]
 
@@ -137,7 +140,6 @@ def TMMidRotAdjust(inTF, tm1, tm2, mode = 0):
 
 
 def TMMidPointEx(taa1, taa2):
-
     return (taa1 + taa2)/2
 
 def TMMidPoint(taa1, taa2):
