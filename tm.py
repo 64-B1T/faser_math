@@ -140,9 +140,11 @@ class tm:
         t3[5] = z
         return self
 
-    def TripleUnit(self):
+    def TripleUnit(self, lv=1):
         """
         Returns XYZ unit vectors based on current position
+        Args:
+            lv: length to magnify by
         Returns:
             vec1: vector X
             vec2: vector Y
@@ -151,14 +153,14 @@ class tm:
         xvec = np.zeros(6)
         yvec = np.zeros(6)
         zvec = np.zeros(6)
-        
+
         xvec[0:3] = self.TM[0:3,0].flatten()
         yvec[0:3] = self.TM[0:3,1].flatten()
         zvec[0:3] = self.TM[0:3,2].flatten()
 
-        vec1 = self + tm(xvec)
-        vec2 = self + tm(yvec)
-        vec3 = self + tm(zvec)
+        vec1 = self + tm(xvec*lv)
+        vec2 = self + tm(yvec*lv)
+        vec3 = self + tm(zvec*lv)
 
         return vec1, vec2, vec3
 
