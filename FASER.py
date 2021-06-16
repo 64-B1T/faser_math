@@ -308,13 +308,30 @@ def AngleBetweenXY(p1, p2, p3):
 
 #Misc
 def GenForceWrench(loc, force, forcedir):
+    """
+    Generates a new wrench
+    Args:
+        loc: relative location of wrench
+        force: magnitude of force applied (or mass if forcedir is a gravity vector)
+        forcedir: unit vector to apply force (or gravity)
+    Returns:
+        wrench
+    """
     forcev = np.array(forcedir) * force #Force vector (negative Z)
     t_wren = np.cross(loc[0:3].reshape((3)), forcev) #Calculate moment based on position and action
     wrench = np.array([t_wren[0], t_wren[1], t_wren[2], forcev[0], forcev[1], forcev[2]]).reshape((6,1)) #Create Complete Wrench
     return wrench
 
 def TransformWrenchFrame(wrench, wrenchFrame, newFrame):
-
+    """
+    Translates one wrench frame to another
+    Args:
+        wrench: original wrench to be translated
+        wrenchFrame: the original frame that the wrench was in (tm)
+        newFrame: the new frame that the wrench *should* be in (tm)
+    Returns:
+        newWrench in the frame of newFrame
+    """
     ref = GlobalToLocal(wrenchFrame, newFrame)
     return  ref.Adjoint().T @ wrench
 

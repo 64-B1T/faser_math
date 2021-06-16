@@ -121,23 +121,12 @@ class tm:
         Returns:
             tm: itself, but left handed
         """
-        tmn = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0],[0, 0, 0, 1]])
-        #print(tmn)
-        #t2= qy * qz * qx
-        t3 = tm(tmn) @ self
-
-        x = np.arctan2(t3.TM[1,2], t3.TM[2,2])
-        #y = np.arctan2(-self.TM[0,2], np.sqrt(self.TM[1,2]**2 + self.TM[2,2]**2))
-        y = np.arcsin(t3.TM[2,0])
-        z = np.arctan2(t3.TM[0,1], t3.TM[0,0])
-        #z = np.arctan(t3.TM[0,1]/t3.TM[0,0])
-        t3 = tm([0,0,0,0,0,0])
         t3[0] = self.TAA[0]
-        t3[1] = - self.TAA[1]
-        t3[2] = self.TAA[2]
-        t3[3] = x
-        t3[4] = y
-        t3[5] = z
+        t3[1] = self.TAA[2]
+        t3[2] = self.TAA[1]
+        t3[3] = -x
+        t3[4] = -y
+        t3[5] = -z
         return self
 
     def TripleUnit(self, lv=1):
