@@ -36,7 +36,7 @@ class tm:
         else:
             if len(initArr) == 6:
                 #Generates tm from numpy array
-                self.TAA = initArr.reshape((6,1)).copy()
+                self.TAA = initArr.reshape((6, 1)).copy()
                 self.TAAtoTM()
                 return
             elif (len(initArr) == 1):
@@ -71,7 +71,7 @@ class tm:
         self.TM = np.eye((4))
         for i in range(4):
             for j in range(4):
-                self.TM[i,j] = TM[i,j]
+                self.TM[i, j] = TM[i, j]
         return self.TM
 
     def getQuat(self):
@@ -107,10 +107,10 @@ class tm:
         Truncates excessive rotations
         """
         refresh = 0
-        for i in range(3,6):
-            if abs(self.TAA[i,0]) > 2 * np.pi:
+        for i in range(3, 6):
+            if abs(self.TAA[i, 0]) > 2 * np.pi:
                 refresh = 1
-                self.TAA[i,0] = self.TAA[i,0] % (np.pi)
+                self.TAA[i, 0] = self.TAA[i, 0] % (np.pi)
         if refresh == 1:
             self.TAAtoTM()
 
@@ -121,13 +121,14 @@ class tm:
         Returns:
             tm: itself, but left handed
         """
-        t3[0] = self.TAA[0]
-        t3[1] = self.TAA[2]
-        t3[2] = self.TAA[1]
-        t3[3] = -x
-        t3[4] = -y
-        t3[5] = -z
-        return self
+        new_tm = tm()
+        new_tm[0:6] = np.array([self.TAA[0],
+            self.TAA[2],
+            self.TAA[1],
+            -self.TAA[3],
+            -self.TAA[5],
+            -self.TAA[4]])
+        return new_tm
 
     def TripleUnit(self, lv=1):
         """
@@ -143,9 +144,9 @@ class tm:
         yvec = np.zeros(6)
         zvec = np.zeros(6)
 
-        xvec[0:3] = self.TM[0:3,0].flatten()
-        yvec[0:3] = self.TM[0:3,1].flatten()
-        zvec[0:3] = self.TM[0:3,2].flatten()
+        xvec[0:3] = self.TM[0:3, 0].flatten()
+        yvec[0:3] = self.TM[0:3, 1].flatten()
+        zvec[0:3] = self.TM[0:3, 2].flatten()
 
         vec1 = self + tm(xvec*lv)
         vec2 = self + tm(yvec*lv)
@@ -174,7 +175,7 @@ class tm:
         Returns:
             thetas
         """
-        trace_r = mr.SafeTrace(self.TM[0:3,0:3])
+        trace_r = mr.SafeTrace(self.TM[0:3, 0:3])
         theta = np.arccos((trace_r- 1)/2)
         return theta
 
@@ -185,8 +186,8 @@ class tm:
             Omega
         """
         return (1/(2*np.sin(self.getTheta())) *
-            np.array([self.TM[2,1]-self.TM[1,2], self.TM[0,2]
-            -self.TM[2,0], self.TM[1,0] -self.TM[0,1]]))
+            np.array([self.TM[2, 1]-self.TM[1, 2], self.TM[0, 2]
+            -self.TM[2, 0], self.TM[1, 0] -self.TM[0, 1]]))
 
     def getQuaternion(self):
         """
@@ -222,9 +223,9 @@ class tm:
         """
         self.TAA = self.TAA.reshape((6))
         mres = mr.MatrixExp3(mr.VecToso3(self.TAA[3:6]))
-        #return mr.RpToTrans(mres,self.TAA[0:3])
-        self.TAA = self.TAA.reshape((6,1))
-        self.TM = np.vstack((np.hstack((mres,self.TAA[0:3])),np.array([0,0,0,1])))
+        #return mr.RpToTrans(mres, self.TAA[0:3])
+        self.TAA = self.TAA.reshape((6, 1))
+        self.TM = np.vstack((np.hstack((mres, self.TAA[0:3])), np.array([0, 0, 0, 1])))
         #self.AngleMod()
         #print(tm)
 
@@ -234,7 +235,7 @@ class tm:
         """
         tm, trans =  mr.TransToRp(self.TM)
         ta = mr.so3ToVec(mr.MatrixLog3(tm))
-        self.TAA = np.vstack((trans.reshape((3,1)), (ta.reshape((3,1)))))
+        self.TAA = np.vstack((trans.reshape((3, 1)), (ta.reshape((3, 1)))))
     #Modern Robotics Ports
     def Adjoint(self):
         """
@@ -258,7 +259,7 @@ class tm:
         Returns:
             3x3 rotation matrix
         """
-        return self.TM[0:3,0:3].copy()
+        return self.TM[0:3, 0:3].copy()
 
     def gTAA(self):
         """
@@ -388,7 +389,7 @@ class tm:
         if isinstance(ind, slice):
             return self.TAA[ind]
         else:
-            return self.TAA[ind,0]
+            return self.TAA[ind, 0]
 
     def __setitem__(self, ind, val):
         """
@@ -397,10 +398,10 @@ class tm:
             ind: slice
             val: value(s)
         """
-        if isinstance(val, np.ndarray) and val.shape == ((3,1)):
+        if isinstance(val, np.ndarray) and val.shape == ((3, 1)):
             self.TAA[ind] = val
         else:
-            self.TAA[ind,0] = val
+            self.TAA[ind, 0] = val
         self.TAAtoTM()
 
     def __floordiv__(self, a):
@@ -473,7 +474,7 @@ class tm:
         else:
             if isinstance(a, np.ndarray):
                 if len(a) == 6:
-                    return tm(self.TAA - a.reshape((6,1)))
+                    return tm(self.TAA - a.reshape((6, 1)))
                 else:
                     return self.TAA - a
             else:
@@ -631,13 +632,13 @@ class tm:
         """
         return not self.__eq__(a)
 
-    def __str__(self,dlen=6):
+    def __str__(self, dlen=6):
         """
         Creates a string from a tm object
         Returns:
             String: representation of transform
         """
         fst = '%.' + str(dlen) + 'f'
-        return ("[ " + fst % (self.TAA[0,0]) + ", "+ fst % (self.TAA[1,0]) +
-         ", "+ fst % (self.TAA[2,0]) + ", "+ fst % (self.TAA[3,0]) +
-         ", "+ fst % (self.TAA[4,0]) + ", "+ fst % (self.TAA[5,0])+ " ]")
+        return ("[ " + fst % (self.TAA[0, 0]) + ", "+ fst % (self.TAA[1, 0]) +
+         ", "+ fst % (self.TAA[2, 0]) + ", "+ fst % (self.TAA[3, 0]) +
+         ", "+ fst % (self.TAA[4, 0]) + ", "+ fst % (self.TAA[5, 0])+ " ]")

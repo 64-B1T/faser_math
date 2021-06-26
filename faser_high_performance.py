@@ -35,13 +35,13 @@ def IKinSpaceConstrained(Slist, M, T, thetalist, eomg, ev, jointMins, jointMaxs,
 
 @jit(nopython=True, cache=True, parallel=True)
 def SPIKinSpace(bottomT, topT, bottomJoints, topJoints, bJS, tJS):
-    lengths = np.zeros((6,1))
+    lengths = np.zeros((6, 1))
 
     #Perform Inverse Kinematics
     for i in range(6):
-        bJS[0:3,i] = TrVec(bottomT,bottomJoints[0:3,i])
-        tJS[0:3,i] = TrVec(topT,topJoints[0:3,i])
-        t_len = Norm(tJS[0:3,i]-bJS[0:3,i])
+        bJS[0:3, i] = TrVec(bottomT, bottomJoints[0:3, i])
+        tJS[0:3, i] = TrVec(topT, topJoints[0:3, i])
+        t_len = Norm(tJS[0:3, i]-bJS[0:3, i])
         lengths[i] = t_len
 
     return lengths, bJS, tJS
@@ -58,7 +58,7 @@ def SPFKinSpaceR(bottomT, L, h, bPos, pPos, maxIters, tol_f, tol_a, lmin):
             angs = np.zeros((6))
             j = 0
             a[3:6] = AngleMod(a[3:6])
-            for i in range(3,6):
+            for i in range(3, 6):
                 angs[j] = (np.cos(a[i]))
                 angs[j+1] = (np.sin(a[i]))
                 j+=2
@@ -81,7 +81,7 @@ def SPFKinSpaceR(bottomT, L, h, bPos, pPos, maxIters, tol_f, tol_a, lmin):
                 uvw[i, :] = np.dot(Rzyx, pPos[i, :])
 
 
-            l_i = np.sum(np.square(xbar + uvw),1)
+            l_i = np.sum(np.square(xbar + uvw), 1)
             #Hence find value of objective function
             #The calculated lengths minus the actual length
             f = -1 * (l_i - np.square(L))
@@ -97,10 +97,10 @@ def SPFKinSpaceR(bottomT, L, h, bPos, pPos, maxIters, tol_f, tol_a, lmin):
             dfda[:, 0:3] = 2*(xbar + uvw)
             for i in range(6):
                 #dfda4 is swapped with dfda6 for magic reasons!
-                dfda[i, 5] = 2*(-xbar[i,0]*uvw[i,1] + xbar[i,1]*uvw[i,0]) #dfda4
-                dfda[i, 4] = 2*((-xbar[i,0]*angs[4] + xbar[i,1]*angs[5])*uvw[i,2] \
-                                - (pPos[i,0]*angs[2] + pPos[i,1]*angs[3]*angs[1])*xbar[i,2]) #dfda5
-                dfda[i, 3] = 2*pPos[i, 1]*(np.dot(xbar[i,:],Rzyx[:,2])) #dfda
+                dfda[i, 5] = 2*(-xbar[i, 0]*uvw[i, 1] + xbar[i, 1]*uvw[i, 0]) #dfda4
+                dfda[i, 4] = 2*((-xbar[i, 0]*angs[4] + xbar[i, 1]*angs[5])*uvw[i, 2] \
+                                - (pPos[i, 0]*angs[2] + pPos[i, 1]*angs[3]*angs[1])*xbar[i, 2]) #dfda5
+                dfda[i, 3] = 2*pPos[i, 1]*(np.dot(xbar[i,:],Rzyx[:, 2])) #dfda
             #disp(dfda, "Dfda")
             #disp(np.linalg.inv(self.InverseJacobianSpace(self.gbottomT(), self.gtopT())))
             #Hence solve system for delta_{a} - The change in lengths

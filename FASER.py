@@ -15,21 +15,14 @@ import copy
 #TRANSFORMATION MATRIX MANIPULATIONS
 
 def TM(alist):
-    """
-    Create a transformation matrix from a list
-    :param alist: TAA type list
-    """
     return TAAtoTM(np.array([alist[0], alist[1], alist[2], alist[3], alist[4], alist[5]]))
 
 def TAAtoTM(transaa):
-    """
-    Convert a TAA object to a transformation matrix
-    """
     transaa = transaa.reshape((6))
     mres = mr.MatrixExp3(mr.VecToso3(transaa[3:6]))
-    #return mr.RpToTrans(mres,transaa[0:3])
-    transaa = transaa.reshape((6,1))
-    tm = np.vstack((np.hstack((mres,transaa[0:3])),np.array([0,0,0,1])))
+    #return mr.RpToTrans(mres, transaa[0:3])
+    transaa = transaa.reshape((6, 1))
+    tm = np.vstack((np.hstack((mres, transaa[0:3])), np.array([0, 0, 0, 1])))
     #print(tm)
     return tm
 
@@ -104,9 +97,9 @@ def TAAtoTMLegacy(transaa):
     """
     transaa = transaa.reshape((6))
     mres = mrs.MatrixExp3(mrs.VecToso3(transaa[3:6]))
-    #return mr.RpToTrans(mres,transaa[0:3])
-    transaa = transaa.reshape((6,1))
-    tm = np.vstack((np.hstack((mres,transaa[0:3])),np.array([0,0,0,1])))
+    #return mr.RpToTrans(mres, transaa[0:3])
+    transaa = transaa.reshape((6, 1))
+    tm = np.vstack((np.hstack((mres, transaa[0:3])), np.array([0, 0, 0, 1])))
     #print(tm)
     return tm
 
@@ -120,12 +113,12 @@ def TMtoTAA(tm):
     """
     tm, trans =  mr.TransToRp(tm)
     ta = mr.so3ToVec(mr.MatrixLog3(tm))
-    return np.vstack((trans.reshape((3,1)), AngleMod(ta.reshape((3,1)))))
+    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
 
 def TMtoTAALegacy(tm):
     tm, trans =  mrs.TransToRp(tm)
     ta = mrs.so3ToVec(mrs.MatrixLog3(tm))
-    return np.vstack((trans.reshape((3,1)), AngleMod(ta.reshape((3,1)))))
+    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
 
 def LocalToGlobal(reference, rel):
     return tm(mr.LocalToGlobal(reference.gTAA(), rel.gTAA()))
@@ -133,11 +126,11 @@ def LocalToGlobal(reference, rel):
 def GlobalToLocal(reference, rel):
     return tm(mr.GlobalToLocal(reference.gTAA(), rel.gTAA()))
 
-def TrVec(TM,vec):
+def TrVec(TM, vec):
     #Performs tv = TM*vec and removes the 1
     TM = TM.TM
     b = np.array([1.0])
-    n = np.concatenate((vec,b))
+    n = np.concatenate((vec, b))
     trvh = TM @ n
     return trvh[0:3]
 
@@ -155,14 +148,14 @@ def TMMidPointEx(taa1, taa2):
     return (taa1 + taa2)/2
 
 def TMMidPoint(taa1, taa2):
-    taar = np.zeros((6,1))
+    taar = np.zeros((6, 1))
     taar[0:3] = (taa1[0:3] + taa2[0:3])/2
     R1 = mr.MatrixExp3(mr.VecToso3(taa1[3:6].reshape((3))))
     R2 = mr.MatrixExp3(mr.VecToso3(taa2[3:6].reshape((3))))
     Re = (R1 @ (R2.conj().T)).conj().T
     Re2 = mr.MatrixExp3(mr.VecToso3(mr.so3ToVec(mr.MatrixLog3((Re)/2))))
     rmid = Re2 @ R1
-    taar[3:6] = mr.so3ToVec(mr.MatrixLog3((rmid))).reshape((3,1))
+    taar[3:6] = mr.so3ToVec(mr.MatrixLog3((rmid))).reshape((3, 1))
     return tm(taar)
 
 def Error(tm1, tm2):
@@ -185,11 +178,11 @@ def ArcDistance(pos1, pos2):
     return d
 
 def CloseGap(taa1, taa2, delt):
-    xconst = np.zeros((6,1))
+    xconst = np.zeros((6, 1))
     for i in range(6):
         xconst[i] = taa2.TAA[i] - taa1.TAA[i]
     #normalize
-    xret = np.zeros((6,1))
+    xret = np.zeros((6, 1))
     var = math.sqrt(xconst[0]**2 + xconst[1]**2 + xconst[2]**2)
     #print(var, "var")
     if var == 0:
@@ -201,11 +194,11 @@ def CloseGap(taa1, taa2, delt):
     return tm(xret)
 
 def ArcGap(taa1, taa2, delt):
-    xconst = np.zeros((6,1))
+    xconst = np.zeros((6, 1))
     for i in range(6):
         xconst[i] = taa2[i] - taa1[i]
     #normalize
-    xret = np.zeros((6,1))
+    xret = np.zeros((6, 1))
     var = math.sqrt(xconst[0]**2 + xconst[1]**2 + xconst[2]**2)
     #print(var, "var")
     if var == 0:
@@ -233,8 +226,8 @@ def lookat(start, goal):
     xax = mr.Normalize(np.cross(up, zax))
     yax = np.cross(zax, xax)
     R2 = np.eye(4)
-    R2[0:3,0:3] = np.array([xax,yax,zax]).T
-    R2[0:3,3] = va
+    R2[0:3, 0:3] = np.array([xax, yax, zax]).T
+    R2[0:3, 3] = va
     ttm = tm(R2)
     return ttm
 
@@ -276,7 +269,7 @@ def AngleMod(rad):
             rad = rad % (2 * np.pi)
         return rad
     if np.size(rad) == 6:
-        for i in range(3,6):
+        for i in range(3, 6):
             if abs(rad[i]) > 2 * np.pi:
                 rad[i] = rad[i] % (2 * np.pi)
         return rad
@@ -285,14 +278,14 @@ def AngleMod(rad):
             rad[i] = rad[i] % (2 * np.pi)
     return rad
 
-def AngleBetween(p1,p2,p3):
+def AngleBetween(p1, p2, p3):
     v1 = np.array([p1[0]-p2[0], p1[1]-p2[1], p1[2] - p2[2]])
     #v1n = mr.Normalize(v1)
     v1n = np.linalg.norm(v1)
     v2 = np.array([p3[0]-p2[0], p3[1]-p2[1], p3[2] - p2[2]])
     #v2n = mr.Normalize(v2)
     v2n = np.linalg.norm(v2)
-    res = np.clip(np.dot(v1,v2)/(v1n*v2n), -1, 1)
+    res = np.clip(np.dot(v1, v2)/(v1n*v2n), -1, 1)
     #res = np.clip(np.dot(np.squeeze(v1n), np.squeeze(v2n)), -1, 1)
     res = AngleMod(math.acos(res))
     return res
@@ -319,7 +312,7 @@ def GenForceWrench(loc, force, forcedir):
     """
     forcev = np.array(forcedir) * force #Force vector (negative Z)
     t_wren = np.cross(loc[0:3].reshape((3)), forcev) #Calculate moment based on position and action
-    wrench = np.array([t_wren[0], t_wren[1], t_wren[2], forcev[0], forcev[1], forcev[2]]).reshape((6,1)) #Create Complete Wrench
+    wrench = np.array([t_wren[0], t_wren[1], t_wren[2], forcev[0], forcev[1], forcev[2]]).reshape((6, 1)) #Create Complete Wrench
     return wrench
 
 def TransformWrenchFrame(wrench, wrenchFrame, newFrame):
@@ -341,7 +334,7 @@ def BoxSpatialInertia(m, l, w, h):
     Izz = m*(w*w+l*l)/12
     Ib = np.diag((Ixx, Iyy, Izz))
 
-    Gbox = np.vstack((np.hstack((Ib,np.zeros((3,3)))),np.hstack((np.zeros((3,3)),m*np.identity((3))))))
+    Gbox = np.vstack((np.hstack((Ib, np.zeros((3, 3)))), np.hstack((np.zeros((3, 3)), m*np.identity((3))))))
     return Gbox
 
 def unitSphere(num_points):
@@ -380,16 +373,16 @@ def TwistToScrew(S):
     if (Norm(S[0:3])) == 0:
         w = mr.Normalize(S[0:6])
         th = Norm(S[3:6])
-        q = np.array([0, 0, 0]).reshape((3,1))
+        q = np.array([0, 0, 0]).reshape((3, 1))
         h = inf
     else:
         unitS = S/Norm(S[0:3])
         w = unitS[0:3].reshape((3))
         v = unitS[3:6].reshape((3))
         th = Norm(S[0:3])
-        q = np.cross(w,v)
-        h = (v.reshape((3,1)) @ w.reshape((1,3)))
-    return (w,th,q,h)
+        q = np.cross(w, v)
+        h = (v.reshape((3, 1)) @ w.reshape((1, 3)))
+    return (w, th, q, h)
 
 def Norm(V):
     C = np.linalg.norm(V)
@@ -418,7 +411,7 @@ def TransformFromTwist(tw):
 #    r = np.identity(3)+math.sin(theta) * rp.skew(w)+(1-math.cos(theta)) * rp.skew(w) @ rp.skew(w)
 #    return r
 
-def SetElements(data,inds,vals):
+def SetElements(data, inds, vals):
     res = copy.copy(data)
     for i in range(len(inds)):
         res[inds[i]] = vals[i]
@@ -445,9 +438,9 @@ def EKF(meant_1, covt_1, ctrlt, meast, gfn, hfn, dgdx, dgdu, dhdx, dhdv):
         meant:
         covt:
     """
-    predmeant = gfn(ctrlt,meant_1)
-    Gt = dgdx(ctrlt,meant_1)
-    Rt = dgdu(ctrlt,meant_1)
+    predmeant = gfn(ctrlt, meant_1)
+    Gt = dgdx(ctrlt, meant_1)
+    Rt = dgdu(ctrlt, meant_1)
     predcovt = Gt @ covt_1 @ Gt.conj().T + Rt
     predmeast = hfn(predmeant)
     Ht = dhdx(predmeant)
@@ -470,11 +463,11 @@ def ChainJacobian(screws, theta):
     """
     jac = np.zeros((6, np.size(theta)))
     T = np.eye(4)
-    Jac[0:6,0] = screws[0:6,0]
+    Jac[0:6, 0] = screws[0:6, 0]
 
-    for i in range(1,np.size(theta)):
-        T = T * TransformFromTwist(theta[i-1]*screws[1:6,i-1])
-        jac[0:6,i] = mr.Adjoint(T)*screws[0:6,i]
+    for i in range(1, np.size(theta)):
+        T = T * TransformFromTwist(theta[i-1]*screws[1:6, i-1])
+        jac[0:6, i] = mr.Adjoint(T)*screws[0:6, i]
     return jac
 
 def delMini(arr):
@@ -491,7 +484,7 @@ def delMini(arr):
     newarr = np.zeros((s))
     for i in range(s[0]):
         for j in range(s[1]):
-            newarr[i,j] = arr[i,j]
+            newarr[i, j] = arr[i, j]
     return newarr
 
 
@@ -511,7 +504,7 @@ def NumJac(f, x0, h):
     x0m[0] = x0m[0] - h
     dfdx = (f(x0p)-f(x0m))/(2*h)
 
-    for i in range(1,x0.size):
+    for i in range(1, x0.size):
         x0p =  np.copy(x0)
         x0p[i] = x0p[i] + h
         x0m =  np.copy(x0)
