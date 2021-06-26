@@ -1,7 +1,6 @@
 import modern_high_performance as mr
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from pyquaternion import Quaternion
 
 class tm:
     """
@@ -153,20 +152,6 @@ class tm:
         vec3 = self + tm(zvec*lv)
 
         return vec1, vec2, vec3
-
-    def LeftHandedQuat(self):
-        """
-        Returns Quaternion, but left handed
-        """
-        tmn = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0],[0, 0, 0, 1]])
-        #print(tmn)
-        #t2= qy * qz * qx
-        mat =(tm(tmn) @ self)
-        t1 = Quaternion(matrix=self.gTM())
-
-        #print(t2)
-
-        return t1
 
     #Murray Quaternion Definitions
     def getTheta(self):
@@ -414,7 +399,7 @@ class tm:
             floor (or matrix right division) result
         """
         if isinstance(a, tm):
-            return tm(np.linalg.lstsq(b.T(), self.T())[0].T)
+            return tm(np.linalg.lstsq(a.T(), self.T())[0].T)
         elif isinstance(a, numpy.ndarray):
             return tm(np.linalg.lstsq(a.T, self.T())[0].T)
         else:

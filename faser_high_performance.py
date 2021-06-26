@@ -6,6 +6,23 @@ from modern_high_performance import *
 #Parallel Disabled For Now. Something is wrong with my installation.
 @jit(nopython=True, cache=True)#, parallel=True)
 def IKinSpaceConstrained(Slist, M, T, thetalist, eomg, ev, jointMins, jointMaxs, maxiterations):
+    """Short summary.
+
+    Args:
+        Slist (type): Description of parameter `Slist`.
+        M (type): Description of parameter `M`.
+        T (type): Description of parameter `T`.
+        thetalist (type): Description of parameter `thetalist`.
+        eomg (type): Description of parameter `eomg`.
+        ev (type): Description of parameter `ev`.
+        jointMins (type): Description of parameter `jointMins`.
+        jointMaxs (type): Description of parameter `jointMaxs`.
+        maxiterations (type): Description of parameter `maxiterations`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     Tsb = FKinSpace(M, Slist, thetalist)
     Vs = np.dot(Adjoint(Tsb), se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
     #print(mhp.MatrixLog6(np.dot(mhp.TransInv(Tsb), T)), "Test")
@@ -35,6 +52,20 @@ def IKinSpaceConstrained(Slist, M, T, thetalist, eomg, ev, jointMins, jointMaxs,
 
 @jit(nopython=True, cache=True, parallel=True)
 def SPIKinSpace(bottomT, topT, bottomJoints, topJoints, bJS, tJS):
+    """Short summary.
+
+    Args:
+        bottomT (type): Description of parameter `bottomT`.
+        topT (type): Description of parameter `topT`.
+        bottomJoints (type): Description of parameter `bottomJoints`.
+        topJoints (type): Description of parameter `topJoints`.
+        bJS (type): Description of parameter `bJS`.
+        tJS (type): Description of parameter `tJS`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     lengths = np.zeros((6, 1))
 
     #Perform Inverse Kinematics
@@ -49,6 +80,23 @@ def SPIKinSpace(bottomT, topT, bottomJoints, topJoints, bJS, tJS):
 #Majority of following section adapted from work by Jak-O-Shadows, Under MIT License
 @jit(nopython=True, cache=True)
 def SPFKinSpaceR(bottomT, L, h, bPos, pPos, maxIters, tol_f, tol_a, lmin):
+    """Short summary.
+
+    Args:
+        bottomT (type): Description of parameter `bottomT`.
+        L (type): Description of parameter `L`.
+        h (type): Description of parameter `h`.
+        bPos (type): Description of parameter `bPos`.
+        pPos (type): Description of parameter `pPos`.
+        maxIters (type): Description of parameter `maxIters`.
+        tol_f (type): Description of parameter `tol_f`.
+        tol_a (type): Description of parameter `tol_a`.
+        lmin (type): Description of parameter `lmin`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     iterNum = 0
     #a = np.zeros((6))
     #a[2] = h
@@ -115,6 +163,16 @@ def SPFKinSpaceR(bottomT, L, h, bPos, pPos, maxIters, tol_f, tol_a, lmin):
 #Performs tv = TM*vec and removes the 1
 @jit(nopython=True, cache=True)
 def TrVec(TM, vec):
+    """Short summary.
+
+    Args:
+        TM (type): Description of parameter `TM`.
+        vec (type): Description of parameter `vec`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     b = np.ones((4))
     b[0:3] = vec
     trvh = TM @ b

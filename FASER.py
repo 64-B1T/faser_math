@@ -13,11 +13,25 @@ import copy
 
 
 #TRANSFORMATION MATRIX MANIPULATIONS
-
-def TM(alist):
-    return TAAtoTM(np.array([alist[0], alist[1], alist[2], alist[3], alist[4], alist[5]]))
-
 def TAAtoTM(transaa):
+    """Short summary.
+
+    Args:
+        transaa (type): Description of parameter `transaa`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
+    """Short summary.
+
+    Args:
+        transaa (type): Description of parameter `transaa`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     transaa = transaa.reshape((6))
     mres = mr.MatrixExp3(mr.VecToso3(transaa[3:6]))
     #return mr.RpToTrans(mres, transaa[0:3])
@@ -116,17 +130,56 @@ def TMtoTAA(tm):
     return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
 
 def TMtoTAALegacy(tm):
+    """Short summary.
+
+    Args:
+        tm (type): Description of parameter `tm`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     tm, trans =  mrs.TransToRp(tm)
     ta = mrs.so3ToVec(mrs.MatrixLog3(tm))
     return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
 
 def LocalToGlobal(reference, rel):
+    """Short summary.
+
+    Args:
+        reference (type): Description of parameter `reference`.
+        rel (type): Description of parameter `rel`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return tm(mr.LocalToGlobal(reference.gTAA(), rel.gTAA()))
 
 def GlobalToLocal(reference, rel):
+    """Short summary.
+
+    Args:
+        reference (type): Description of parameter `reference`.
+        rel (type): Description of parameter `rel`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return tm(mr.GlobalToLocal(reference.gTAA(), rel.gTAA()))
 
 def TrVec(TM, vec):
+    """Short summary.
+
+    Args:
+        TM (type): Description of parameter `TM`.
+        vec (type): Description of parameter `vec`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     #Performs tv = TM*vec and removes the 1
     TM = TM.TM
     b = np.array([1.0])
@@ -135,6 +188,18 @@ def TrVec(TM, vec):
     return trvh[0:3]
 
 def TMMidRotAdjust(inTF, tm1, tm2, mode = 0):
+    """Short summary.
+
+    Args:
+        inTF (type): Description of parameter `inTF`.
+        tm1 (type): Description of parameter `tm1`.
+        tm2 (type): Description of parameter `tm2`.
+        mode (type): Description of parameter `mode`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     toAdj = inTF.copy()
     if mode != 1:
         t_mid = TMMidPoint(tm1, tm2)
@@ -145,9 +210,29 @@ def TMMidRotAdjust(inTF, tm1, tm2, mode = 0):
 
 
 def TMMidPointEx(taa1, taa2):
+    """Short summary.
+
+    Args:
+        taa1 (type): Description of parameter `taa1`.
+        taa2 (type): Description of parameter `taa2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return (taa1 + taa2)/2
 
 def TMMidPoint(taa1, taa2):
+    """Short summary.
+
+    Args:
+        taa1 (type): Description of parameter `taa1`.
+        taa2 (type): Description of parameter `taa2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     taar = np.zeros((6, 1))
     taar[0:3] = (taa1[0:3] + taa2[0:3])/2
     R1 = mr.MatrixExp3(mr.VecToso3(taa1[3:6].reshape((3))))
@@ -159,13 +244,43 @@ def TMMidPoint(taa1, taa2):
     return tm(taar)
 
 def Error(tm1, tm2):
+    """Short summary.
+
+    Args:
+        tm1 (type): Description of parameter `tm1`.
+        tm2 (type): Description of parameter `tm2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return abs(tm1 - tm2)
 
 def GeometricError(tm1, tm2):
+    """Short summary.
+
+    Args:
+        tm1 (type): Description of parameter `tm1`.
+        tm2 (type): Description of parameter `tm2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return GlobalToLocal(tm2, tm1)
 
 
 def Distance(pos1, pos2):
+    """Short summary.
+
+    Args:
+        pos1 (type): Description of parameter `pos1`.
+        pos2 (type): Description of parameter `pos2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     try:
         d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2 + (pos2[2] - pos1[2])**2)
     except:
@@ -173,6 +288,16 @@ def Distance(pos1, pos2):
     return d
 
 def ArcDistance(pos1, pos2):
+    """Short summary.
+
+    Args:
+        pos1 (type): Description of parameter `pos1`.
+        pos2 (type): Description of parameter `pos2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     rpos = GlobalToLocal(pos1, pos2)
     d = math.sqrt(rpos[0]**2 + rpos[1]**2 + rpos[2]**2 + rpos[3]**2 +rpos[4]**2 + rpos[5]**2)
     return d
@@ -194,6 +319,17 @@ def CloseGap(taa1, taa2, delt):
     return tm(xret)
 
 def ArcGap(taa1, taa2, delt):
+    """Short summary.
+
+    Args:
+        taa1 (type): Description of parameter `taa1`.
+        taa2 (type): Description of parameter `taa2`.
+        delt (type): Description of parameter `delt`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     xconst = np.zeros((6, 1))
     for i in range(6):
         xconst[i] = taa2[i] - taa1[i]
@@ -210,6 +346,16 @@ def ArcGap(taa1, taa2, delt):
     return xf
 
 def RotFromVec(pos1, pos2):
+    """Short summary.
+
+    Args:
+        pos1 (type): Description of parameter `pos1`.
+        pos2 (type): Description of parameter `pos2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2 + (pos2[2] - pos1[2])**2)
     res = lambda x : Distance(tm([pos1[0], pos1[1], pos1[2], x[0], x[1], pos1[5]]) @ tm([0, 0, d, 0, 0, 0]), pos2)
     x0 = np.array([pos1[3], pos1[4]])
@@ -218,6 +364,16 @@ def RotFromVec(pos1, pos2):
     return pos1
 
 def lookat(start, goal):
+    """Short summary.
+
+    Args:
+        start (type): Description of parameter `start`.
+        goal (type): Description of parameter `goal`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     upa = (start @ tm([-1, 0, 0, 0, 0, 0]))
     up = upa[0:3].flatten()
     va = start[0:3].flatten()
@@ -232,6 +388,16 @@ def lookat(start, goal):
     return ttm
 
 def RotFromVec2(pos1, pos2):
+    """Short summary.
+
+    Args:
+        pos1 (type): Description of parameter `pos1`.
+        pos2 (type): Description of parameter `pos2`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2)
     #d = GlobalToLocal(pos1, pos2)[0]
     res = lambda x : Distance(pos1@ tm([0, 0, 0, 0, 0, x[0]]) @ tm([0, -d, 0, 0, 0, 0]), pos2)
@@ -246,6 +412,17 @@ def RotFromVec2(pos1, pos2):
     return pos1
 
 def IKPath(initial, goal, steps):
+    """Short summary.
+
+    Args:
+        initial (type): Description of parameter `initial`.
+        goal (type): Description of parameter `goal`.
+        steps (type): Description of parameter `steps`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     delta = (goal.gTAA() - initial.gTAA())/steps
     poslist = []
     for i in range(steps):
@@ -256,12 +433,39 @@ def IKPath(initial, goal, steps):
 #ANGLE HELPERS
 
 def Deg2Rad(deg):
+    """Short summary.
+
+    Args:
+        deg (type): Description of parameter `deg`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return deg * np.pi / 180
 
 def Rad2Deg(rad):
+    """Short summary.
+
+    Args:
+        rad (type): Description of parameter `rad`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     return rad * 180 / np.pi
 
 def AngleMod(rad):
+    """Short summary.
+
+    Args:
+        rad (type): Description of parameter `rad`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     if isinstance(rad, tm):
         return rad.AngleMod();
     if np.size(rad) == 1:
@@ -279,6 +483,17 @@ def AngleMod(rad):
     return rad
 
 def AngleBetween(p1, p2, p3):
+    """Short summary.
+
+    Args:
+        p1 (type): Description of parameter `p1`.
+        p2 (type): Description of parameter `p2`.
+        p3 (type): Description of parameter `p3`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     v1 = np.array([p1[0]-p2[0], p1[1]-p2[1], p1[2] - p2[2]])
     #v1n = mr.Normalize(v1)
     v1n = np.linalg.norm(v1)
@@ -291,6 +506,17 @@ def AngleBetween(p1, p2, p3):
     return res
 
 def AngleBetweenXY(p1, p2, p3):
+    """Short summary.
+
+    Args:
+        p1 (type): Description of parameter `p1`.
+        p2 (type): Description of parameter `p2`.
+        p3 (type): Description of parameter `p3`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     v1 = np.array([p2[0]-p1[0], p2[1]-p1[1]])
     v1m = np.sqrt(v1[0] **2 + v1[1]**2)
     v2 = np.array([p2[0]-p1[0], p2[1]-p1[1]])
@@ -329,6 +555,18 @@ def TransformWrenchFrame(wrench, wrenchFrame, newFrame):
     return  ref.Adjoint().T @ wrench
 
 def BoxSpatialInertia(m, l, w, h):
+    """Short summary.
+
+    Args:
+        m (type): Description of parameter `m`.
+        l (type): Description of parameter `l`.
+        w (type): Description of parameter `w`.
+        h (type): Description of parameter `h`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     Ixx = m*(w*w+h*h)/12
     Iyy = m*(l*l+h*h)/12
     Izz = m*(w*w+l*l)/12
@@ -370,6 +608,15 @@ def unitSphere(num_points):
     return xyzcoords, azel
 
 def TwistToScrew(S):
+    """Short summary.
+
+    Args:
+        S (type): Description of parameter `S`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     if (Norm(S[0:3])) == 0:
         w = mr.Normalize(S[0:6])
         th = Norm(S[3:6])
@@ -385,10 +632,28 @@ def TwistToScrew(S):
     return (w, th, q, h)
 
 def Norm(V):
+    """Short summary.
+
+    Args:
+        V (type): Description of parameter `V`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     C = np.linalg.norm(V)
     return C
 
 def NormalizeTwist(tw):
+    """Short summary.
+
+    Args:
+        tw (type): Description of parameter `tw`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     if Norm(tw[0:3]) > 0:
         twn = tw/Norm(tw[0:3])
     else:
@@ -396,10 +661,28 @@ def NormalizeTwist(tw):
     return twn
 
 def TwistFromTransform(tm):
+    """Short summary.
+
+    Args:
+        tm (type): Description of parameter `tm`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     tmskew = mr.MatrixLog6(tm.TM)
     return mr.se3ToVec(tmskew)
 
 def TransformFromTwist(tw):
+    """Short summary.
+
+    Args:
+        tw (type): Description of parameter `tw`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     tw = tw.reshape((6))
     #print(tw)
     tms = mr.VecTose3(tw)
@@ -412,6 +695,17 @@ def TransformFromTwist(tw):
 #    return r
 
 def SetElements(data, inds, vals):
+    """Short summary.
+
+    Args:
+        data (type): Description of parameter `data`.
+        inds (type): Description of parameter `inds`.
+        vals (type): Description of parameter `vals`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
     res = copy.copy(data)
     for i in range(len(inds)):
         res[inds[i]] = vals[i]
@@ -519,3 +813,22 @@ def NumJac(f, x0, h):
     #f(x0)
 
     return dfdx
+
+
+def getUnitVec(point_1, point_2, distance = 1.0):
+    """
+    Returns a unit vector for a given actuator
+    Args:
+        point_1 (tm): Description of parameter `point_1`.
+        point_2 (tm): Description of parameter `point_2`.
+        distance (Float): Description of parameter `distance`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
+    v1 = np.array([point_1[0], point_1[1], point_1[2]])
+    unit_b = (np.array([point_2[0], point_2[1], point_2[2]]) - v1)
+    unit = unit_b / ling.norm(unit_b)
+    pos = v1 + (unit * distance)
+    return tm([pos[0], pos[1], pos[2], 0, 0, 0])
