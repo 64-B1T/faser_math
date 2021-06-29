@@ -341,7 +341,7 @@ def ArcGap(taa1, taa2, delt):
         var = 0
     for i in range(6):
         xret[i] = (xconst[i] / var) * delt
-    xf = tm1 @ TAAtoTM(xret)
+    xf = taa1 @ TAAtoTM(xret)
 
     return xf
 
