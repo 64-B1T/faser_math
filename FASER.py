@@ -1,58 +1,80 @@
-#import whatever we need, make note of what packages to install
 import math
-from modern_robotics_numba import *
-#import modern_high_performance as mr
-import modern_robotics as mrs
+import faser_high_performance as mr
 import numpy as np
 import scipy as sci
-#import robopy as rp
 import scipy.linalg as ling
 from tm import tm
 
-import copy
-
-
 #TRANSFORMATION MATRIX MANIPULATIONS
-def TAAtoTM(transaa):
-    """Short summary.
-
-    Args:
-        transaa (type): Description of parameter `transaa`.
-
-    Returns:
-        type: Description of returned object.
-
+def TAAtoTM(taa_format):
     """
-    """Short summary.
-
+    Converts Translation Axis Angle to Transformation Matrix
     Args:
-        transaa (type): Description of parameter `transaa`.
-
+        taa_format (ndarray): TAA representation of given transformation.
     Returns:
-        type: Description of returned object.
-
+        transformation_matrix: 4x4 transformation matrix representation
     """
-    transaa = transaa.reshape((6))
-    mres = mr.MatrixExp3(mr.VecToso3(transaa[3:6]))
+    taa_format = taa_format.reshape((6))
+    mres = mr.MatrixExp3(mr.VecToso3(taa_format[3:6]))
     #return mr.RpToTrans(mres, transaa[0:3])
-    transaa = transaa.reshape((6, 1))
-    tm = np.vstack((np.hstack((mres, transaa[0:3])), np.array([0, 0, 0, 1])))
+    taa_format = taa_format.reshape((6, 1))
+    tm = np.vstack((np.hstack((mres, taa_format[0:3])), np.array([0, 0, 0, 1])))
     #print(tm)
     return tm
 
-def PlaneFrom3Tms(tm1, tm2, tm3):
+def TMtoTAA(transformation_matrix):
+    """
+    Converts a 4x4 transformation matrix to TAA representation
+    Args:
+        transformation_matrix: transformation matrix to be converted
+    Returns:
+        TAA representation
+    """
+    _, trans =  mr.TransToRp(transformation_matrix)
+    ta = mr.so3ToVec(mr.MatrixLog3(transformation_matrix))
+    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
+
+#Change of Frames
+def localToGlobal(reference, rel):
+    """
+    Converts a transform in a local frame to the global frame
+
+    Args:
+        reference (temp): Transform of frame A to frame B
+        rel (tm): Transform of object 1 in frame B
+
+    Returns:
+        tm: Transform of object 1 in frame A
+
+    """
+    return tm(mr.LocalToGlobal(reference.gTAA(), rel.gTAA()))
+
+def globalToLocal(reference, rel):
+    """
+    Convert a transform in a global frame to a local frame
+
+    Args:
+        reference (tm): Transform of frame A to frame B
+        rel (tm): Transform of object 1 in frame A
+    Returns:
+        tm: Transform of object 1 in frame B
+    """
+    return tm(mr.GlobalToLocal(reference.gTAA(), rel.gTAA()))
+
+#Transformation Matrix Group Functions
+def planeFromThreePoints(ref_point_1, ref_point_2, ref_point_3):
     """
     Creates the equation of a plane from three points
     Args:
-        tm1: tm or vector for point 1
-        tm2: tm or vector for point 2
-        tm3: tm or vector for point 3
+        ref_point_1: tm or vector for point 1
+        ref_point_2: tm or vector for point 2
+        ref_point_3: tm or vector for point 3
     Returns:
         a, b, c, d: equation cooficients of a plane
     """
-    p1 = np.array(tm1[0:3]).flatten()
-    p2 = np.array(tm2[0:3]).flatten()
-    p3 = np.array(tm3[0:3]).flatten()
+    p1 = np.array(ref_point_1[0:3]).flatten()
+    p2 = np.array(ref_point_2[0:3]).flatten()
+    p3 = np.array(ref_point_3[0:3]).flatten()
 
     v1 = p3 - p1
     v2 = p2 - p1
@@ -67,32 +89,32 @@ def PlaneFrom3Tms(tm1, tm2, tm3):
 
     return a, b, c, d
 
-def PlaneTMSFromOne(tm1):
+def planePointsFromTransform(ref_point_1):
     """
     Create plane TM points from one Transform (using unit vectors)
     Args:
-        tm1: transform to place plane on
+        ref_point_1: transform to place plane on
     Returns:
         a, b, c: Plane basis points
     """
-    a, b, x = tm1.TripleUnit()
-    return tm1, b, c
+    a, b, c = ref_point_1.TripleUnit()
+    return ref_point_1, b, c
 
-def Mirror(origin, mirrorPoint):
+def mirror(origin, mirror_plane):
     """
     Mirrors a point about a plane
     Args:
-        origin: point at origin
-        mirrorPoint: tm describing plane to mirror over
+        origin: point to be mirrored
+        mirror_plane: tm describing plane to mirror over
     Returns:
         mirrored Point
     """
     t1, t2, t3 = PlaneTMSFromOne(origin)
     a, b, c, d = PlaneFrom3Tms(t1, t2, t3)
-    x1 = mirrorPoint[0]
-    y1 = mirrorPoint[1]
-    z1 = mirrorPoint[2]
-    k =(-a * x1-b * y1-c * z1-d)/float((a * a + b * b + c * c))
+    x1 = mirror_plane[0]
+    y1 = mirror_plane[1]
+    z1 = mirror_plane[2]
+    k = (-a * x1 - b * y1 - c * z1 - d) / float((a * a + b * b + c * c))
     x2 = a * k + x1
     y2 = b * k + y1
     z2 = c * k + z1
@@ -101,285 +123,98 @@ def Mirror(origin, mirrorPoint):
     z3 = 2 * z2-z1
     return tm([x3, y3, z3, 0, 0, 0])
 
-def TAAtoTMLegacy(transaa):
+def adjustRotationToMidpoint(active_point, ref_point_1, ref_point_2, mode = 0):
     """
-    Transforms a TAA representation to a TM one
-    Args:
-        transaa: taa representation
-    Returns:
-        tm: TM representation
-    """
-    transaa = transaa.reshape((6))
-    mres = mrs.MatrixExp3(mrs.VecToso3(transaa[3:6]))
-    #return mr.RpToTrans(mres, transaa[0:3])
-    transaa = transaa.reshape((6, 1))
-    tm = np.vstack((np.hstack((mres, transaa[0:3])), np.array([0, 0, 0, 1])))
-    #print(tm)
-    return tm
-
-def TMtoTAA(tm):
-    """
-    Converts a 4x4 transformation matrix to TAA representation
-    Args:
-        tm: tm to be convverted
-    Returns:
-        TAA representation
-    """
-    tm, trans =  mr.TransToRp(tm)
-    ta = mr.so3ToVec(mr.MatrixLog3(tm))
-    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
-
-def TMtoTAALegacy(tm):
-    """Short summary.
+    Applies the midpoint transform of reference points 1 and 2 to an active point
 
     Args:
-        tm (type): Description of parameter `tm`.
+        active_point (tm): Point to be modified
+        ref_point_1 (tm): origin point for midpoint calculation
+        ref_point_2 (tm): goal point for midpoint calculation
+        mode (int): Mode of midpoint calculation. 0, TMMIDPOINT. 1, ROTFROMVEC
 
     Returns:
-        type: Description of returned object.
+        tm: Modified version of active_point with orientation of vector 1 -> 2
 
     """
-    tm, trans =  mrs.TransToRp(tm)
-    ta = mrs.so3ToVec(mrs.MatrixLog3(tm))
-    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
-
-def LocalToGlobal(reference, rel):
-    """Short summary.
-
-    Args:
-        reference (type): Description of parameter `reference`.
-        rel (type): Description of parameter `rel`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    return tm(mr.LocalToGlobal(reference.gTAA(), rel.gTAA()))
-
-def GlobalToLocal(reference, rel):
-    """Short summary.
-
-    Args:
-        reference (type): Description of parameter `reference`.
-        rel (type): Description of parameter `rel`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    return tm(mr.GlobalToLocal(reference.gTAA(), rel.gTAA()))
-
-def TrVec(TM, vec):
-    """Short summary.
-
-    Args:
-        TM (type): Description of parameter `TM`.
-        vec (type): Description of parameter `vec`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    #Performs tv = TM*vec and removes the 1
-    TM = TM.TM
-    b = np.array([1.0])
-    n = np.concatenate((vec, b))
-    trvh = TM @ n
-    return trvh[0:3]
-
-def TMMidRotAdjust(inTF, tm1, tm2, mode = 0):
-    """Short summary.
-
-    Args:
-        inTF (type): Description of parameter `inTF`.
-        tm1 (type): Description of parameter `tm1`.
-        tm2 (type): Description of parameter `tm2`.
-        mode (type): Description of parameter `mode`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    toAdj = inTF.copy()
+    modified_point = active_point.copy()
     if mode != 1:
-        t_mid = TMMidPoint(tm1, tm2)
-        toAdj[3:6] = t_mid[3:6]
+        t_mid = TMMidPoint(ref_point_1, ref_point_2)
+        modified_point[3:6] = t_mid[3:6]
     else:
-        toAdj[3:6] = RotFromVec(tm1, tm2)[3:6]
-    return toAdj
+        modified_point[3:6] = RotFromVec(ref_point_1, ref_point_2)[3:6]
+    return modified_point
 
-
-def TMMidPointEx(taa1, taa2):
-    """Short summary.
-
-    Args:
-        taa1 (type): Description of parameter `taa1`.
-        taa2 (type): Description of parameter `taa2`.
-
-    Returns:
-        type: Description of returned object.
-
+def tmAvgMidpoint(ref_point_1, ref_point_2):
     """
-    return (taa1 + taa2)/2
-
-def TMMidPoint(taa1, taa2):
-    """Short summary.
+    Simplest version of a midpoint calculation. Simply the average of two positions
 
     Args:
-        taa1 (type): Description of parameter `taa1`.
-        taa2 (type): Description of parameter `taa2`.
-
+        ref_point_1 (tm): position 1
+        ref_point_2 (tm): position 2
     Returns:
-        type: Description of returned object.
+        tm: midpoint average of positions 1 and 2
+    """
+    return (ref_point_1 + ref_point_2)/2
 
+def tmInterpMidpoint(ref_point_1, ref_point_2):
+    """
+    Better version of midpoint calculation
+
+    Position is stil average of positions 1 and 2
+    but rotation is calculated as a proper interpolation
+
+    Args:
+        ref_point_1 (tm): position 1
+        ref_point_2 (tm): position 2
+    Returns:
+        tm: midpoint of positions 1 and 2
     """
     taar = np.zeros((6, 1))
-    taar[0:3] = (taa1[0:3] + taa2[0:3])/2
-    R1 = mr.MatrixExp3(mr.VecToso3(taa1[3:6].reshape((3))))
-    R2 = mr.MatrixExp3(mr.VecToso3(taa2[3:6].reshape((3))))
+    taar[0:3] = (ref_point_1[0:3] + ref_point_2[0:3])/2
+    R1 = mr.MatrixExp3(mr.VecToso3(ref_point_1[3:6].reshape((3))))
+    R2 = mr.MatrixExp3(mr.VecToso3(ref_point_2[3:6].reshape((3))))
     Re = (R1 @ (R2.conj().T)).conj().T
     Re2 = mr.MatrixExp3(mr.VecToso3(mr.so3ToVec(mr.MatrixLog3((Re)/2))))
     rmid = Re2 @ R1
     taar[3:6] = mr.so3ToVec(mr.MatrixLog3((rmid))).reshape((3, 1))
     return tm(taar)
 
-def Error(tm1, tm2):
-    """Short summary.
+#Rotations/Viewers
+def rotationFromVector(ref_point_1, ref_point_2):
+    """
+    Reorients ref_point_1 such that its z axis is pointing towards ref_point_2
 
     Args:
-        tm1 (type): Description of parameter `tm1`.
-        tm2 (type): Description of parameter `tm2`.
-
+        ref_point_1 (tm): position 1
+        ref_point_2 (tm): position 2
     Returns:
-        type: Description of returned object.
-
+        tm: ref_point_1 where z points to position 2
     """
-    return abs(tm1 - tm2)
-
-def GeometricError(tm1, tm2):
-    """Short summary.
-
-    Args:
-        tm1 (type): Description of parameter `tm1`.
-        tm2 (type): Description of parameter `tm2`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    return GlobalToLocal(tm2, tm1)
-
-
-def Distance(pos1, pos2):
-    """Short summary.
-
-    Args:
-        pos1 (type): Description of parameter `pos1`.
-        pos2 (type): Description of parameter `pos2`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    try:
-        d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2 + (pos2[2] - pos1[2])**2)
-    except:
-        d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2)
-    return d
-
-def ArcDistance(pos1, pos2):
-    """Short summary.
-
-    Args:
-        pos1 (type): Description of parameter `pos1`.
-        pos2 (type): Description of parameter `pos2`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    rpos = GlobalToLocal(pos1, pos2)
-    d = math.sqrt(rpos[0]**2 + rpos[1]**2 + rpos[2]**2 + rpos[3]**2 +rpos[4]**2 + rpos[5]**2)
-    return d
-
-def CloseGap(taa1, taa2, delt):
-    xconst = np.zeros((6, 1))
-    for i in range(6):
-        xconst[i] = taa2.TAA[i] - taa1.TAA[i]
-    #normalize
-    xret = np.zeros((6, 1))
-    var = math.sqrt(xconst[0]**2 + xconst[1]**2 + xconst[2]**2)
-    #print(var, "var")
-    if var == 0:
-        var = 0
-    for i in range(6):
-        xret[i] = taa1.TAA[i] + (xconst[i] / var) * delt
-    #xf = tm1 @ TAAtoTM(xret)
-
-    return tm(xret)
-
-def ArcGap(taa1, taa2, delt):
-    """Short summary.
-
-    Args:
-        taa1 (type): Description of parameter `taa1`.
-        taa2 (type): Description of parameter `taa2`.
-        delt (type): Description of parameter `delt`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    xconst = np.zeros((6, 1))
-    for i in range(6):
-        xconst[i] = taa2[i] - taa1[i]
-    #normalize
-    xret = np.zeros((6, 1))
-    var = math.sqrt(xconst[0]**2 + xconst[1]**2 + xconst[2]**2)
-    #print(var, "var")
-    if var == 0:
-        var = 0
-    for i in range(6):
-        xret[i] = (xconst[i] / var) * delt
-    xf = taa1 @ TAAtoTM(xret)
-
-    return xf
-
-def RotFromVec(pos1, pos2):
-    """Short summary.
-
-    Args:
-        pos1 (type): Description of parameter `pos1`.
-        pos2 (type): Description of parameter `pos2`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2 + (pos2[2] - pos1[2])**2)
-    res = lambda x : Distance(tm([pos1[0], pos1[1], pos1[2], x[0], x[1], pos1[5]]) @ tm([0, 0, d, 0, 0, 0]), pos2)
-    x0 = np.array([pos1[3], pos1[4]])
+    d = math.sqrt((ref_point_2[0] - ref_point_1[0])**2 + (ref_point_2[1] - ref_point_1[1])**2 + (ref_point_2[2] - ref_point_1[2])**2)
+    res = lambda x : Distance(tm([ref_point_1[0], ref_point_1[1], ref_point_1[2], x[0], x[1], ref_point_1[5]]) @ tm([0, 0, d, 0, 0, 0]), ref_point_2)
+    x0 = np.array([ref_point_1[3], ref_point_1[4]])
     xs = sci.optimize.fmin(res, x0, disp=False)
-    pos1[3:5] = xs.reshape((2))
-    return pos1
+    ref_point_1[3:5] = xs.reshape((2))
+    return ref_point_1
 
-def lookat(start, goal):
-    """Short summary.
+def lookAt(ref_point_1, ref_point_2):
+    """
+    Alternate version of RotFromVec, however rotation *about* z axis may be more random
+    Does not depend on sci optimize fmin
 
     Args:
-        start (type): Description of parameter `start`.
-        goal (type): Description of parameter `goal`.
-
+        ref_point_1 (tm): position 1
+        ref_point_2 (tm): position 2
     Returns:
-        type: Description of returned object.
-
+        tm: point at ref_point_1 where z points to position 2
     """
-    upa = (start @ tm([-1, 0, 0, 0, 0, 0]))
+    upa = (ref_point_1 @ tm([-1, 0, 0, 0, 0, 0]))
     up = upa[0:3].flatten()
-    va = start[0:3].flatten()
-    vb = goal[0:3].flatten()
-    zax = mr.Normalize(vb-va)
-    xax = mr.Normalize(np.cross(up, zax))
+    va = ref_point_1[0:3].flatten()
+    vb = ref_point_2[0:3].flatten()
+    zax = mr.mr.Normalize(vb-va)
+    xax = mr.mr.Normalize(np.cross(up, zax))
     yax = np.cross(zax, xax)
     R2 = np.eye(4)
     R2[0:3, 0:3] = np.array([xax, yax, zax]).T
@@ -387,84 +222,172 @@ def lookat(start, goal):
     ttm = tm(R2)
     return ttm
 
-def RotFromVec2(pos1, pos2):
-    """Short summary.
+    #Error and Distance Functions
+def poseError(ref_point_1, ref_point_2):
+    """
+    Provides absolute error between two transformations
 
     Args:
-        pos1 (type): Description of parameter `pos1`.
-        pos2 (type): Description of parameter `pos2`.
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
 
     Returns:
-        type: Description of returned object.
+        tm: absolute error
 
     """
-    d = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2)
-    #d = GlobalToLocal(pos1, pos2)[0]
-    res = lambda x : Distance(pos1@ tm([0, 0, 0, 0, 0, x[0]]) @ tm([0, -d, 0, 0, 0, 0]), pos2)
-    x0 = np.array(0)
-    xs = sci.optimize.fmin(res, x0, disp=False)
-    pos1 = pos1@ tm([0, 0, 0, 0, 0, round(xs[0], 1)])
-    #pos1 = pos1 @ tm([0, 0, 0, 0, 0, np.pi/4])
-    #G2 - 0
-    #G4 - np.pi(?)
-    #G3 - pi/2
-    print(xs[0])
-    return pos1
+    return abs(ref_point_1 - ref_point_2)
 
-def IKPath(initial, goal, steps):
-    """Short summary.
+def geometricError(ref_point_1, ref_point_2):
+    """
+    Provides geometric error between two points
 
     Args:
-        initial (type): Description of parameter `initial`.
-        goal (type): Description of parameter `goal`.
-        steps (type): Description of parameter `steps`.
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
 
     Returns:
-        type: Description of returned object.
+        tm: geometric error
+
+    """
+    return GlobalToLocal(ref_point_2, ref_point_1)
+
+def distance(ref_point_1, ref_point_2):
+    """
+    Calculates straight line distance between two points (2d or 3d (tm))
+
+    Args:
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
+
+    Returns:
+        float: distance between points 1 and 2
+
+    """
+    try:
+        d = math.sqrt((ref_point_2[0] - ref_point_1[0])**2 + (ref_point_2[1] - ref_point_1[1])**2 + (ref_point_2[2] - ref_point_1[2])**2)
+    except:
+        d = math.sqrt((ref_point_2[0] - ref_point_1[0])**2 + (ref_point_2[1] - ref_point_1[1])**2)
+    return d
+
+def arcDistance(ref_point_1, ref_point_2):
+    """
+    Calculates the arc distance between two points
+    (magnitude average of geometric error)
+
+    Args:
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
+
+    Returns:
+        float: arc distance between two points
+
+    """
+    geo_error = GlobalToLocal(ref_point_1, ref_point_2)
+    d = math.sqrt(geo_error[0]**2 + geo_error[1]**2 + geo_error[2]**2 + geo_error[3]**2 +geo_error[4]**2 + geo_error[5]**2)
+    return d
+
+#Gap Closure
+def closeLinearGap(origin_point, goal_point, delta):
+    """
+    Close linear gap between two points by delta amount
+
+    Args:
+        origin_point (tm): Current point in trajectory
+        goal_point (tm): Goal to advance towards
+        delta (float): Amount to advance
+
+    Returns:
+        tm: new, closer position to goal
+
+    """
+    origin_to_goal = goal_point - origin_point
+    #normalize
+    return_transform = np.zeros((6, 1))
+    var = math.sqrt(origin_to_goal[0]**2 + origin_to_goal[1]**2 + origin_to_goal[2]**2)
+    #print(var, "var")
+    if var == 0:
+        var = 0
+    for i in range(6):
+        return_transform[i] = origin_point.TAA[i] + (origin_to_goal[i] / var) * delta
+    #xf = origin_point @ TAAtoTM(return_transform)
+
+    return tm(return_transform)
+
+def closeArcGap(origin_point, goal_point, delta):
+    """
+    Closes gap to goal using arc method instead of linear
+
+    Args:
+        origin_point (tm): Current point in trajectory
+        goal_point (tm): Goal to advance towards
+        delta (float): Amount to advance
+
+    Returns:
+        tm: new, closer position to goal
+
+    """
+    origin_to_goal = goal_point - origin_point
+    #normalize
+    return_transform = np.zeros((6, 1))
+    var = math.sqrt(origin_to_goal[0]**2 + origin_to_goal[1]**2 + origin_to_goal[2]**2)
+    #print(var, "var")
+    if var == 0:
+        var = 0
+    for i in range(6):
+        return_transform[i] = (origin_to_goal[i] / var) * delta
+    xf = origin_point @ TAAtoTM(return_transform)
+
+    return xf
+
+def IKPath(initial, goal, steps):
+    """
+    Creates a simple oath from origin to goal witha  given number of steps
+
+    Args:
+        initial (tm): Initial Position
+        goal (tm): Goal position
+        steps (int): number of steps to take
+
+    Returns:
+        [tm]: list of transforms representing trajectory
 
     """
     delta = (goal.gTAA() - initial.gTAA())/steps
-    poslist = []
+    pose_list = []
     for i in range(steps):
-        pos = tm(inital.gTAA() + delta * i)
-        poslist.append(pos)
-    return poslist
+        pos = tm(initial.gTAA() + delta * i)
+        pose_list.append(pos)
+    return pose_list
+
 
 #ANGLE HELPERS
-
-def Deg2Rad(deg):
-    """Short summary.
-
+def deg2Rad(deg):
+    """
+    Convert degrees to radians
     Args:
-        deg (type): Description of parameter `deg`.
-
+        deg (float): measure of angles in degrees
     Returns:
-        type: Description of returned object.
-
+        float: measure of angles in radians
     """
     return deg * np.pi / 180
 
-def Rad2Deg(rad):
-    """Short summary.
-
+def rad2Deg(rad):
+    """
+    Converts radians to degrees
     Args:
-        rad (type): Description of parameter `rad`.
-
+        rad (float): measure of angles in radians
     Returns:
-        type: Description of returned object.
-
+        float: measure of angles in degrees
     """
     return rad * 180 / np.pi
 
-def AngleMod(rad):
-    """Short summary.
-
+def angleMod(rad):
+    """
+    Cuts angles in radians such that they don't exceed 2pi absolute
     Args:
-        rad (type): Description of parameter `rad`.
-
+        rad (float): angle or angles
     Returns:
-        type: Description of returned object.
-
+        float: cut down angle or angles
     """
     if isinstance(rad, tm):
         return rad.AngleMod();
@@ -482,99 +405,141 @@ def AngleMod(rad):
             rad[i] = rad[i] % (2 * np.pi)
     return rad
 
-def AngleBetween(p1, p2, p3):
-    """Short summary.
-
-    Args:
-        p1 (type): Description of parameter `p1`.
-        p2 (type): Description of parameter `p2`.
-        p3 (type): Description of parameter `p3`.
-
-    Returns:
-        type: Description of returned object.
-
+def angleBetween(ref_point_1, ref_point_2, ref_point_3):
     """
-    v1 = np.array([p1[0]-p2[0], p1[1]-p2[1], p1[2] - p2[2]])
-    #v1n = mr.Normalize(v1)
+    Calculates the interior angle between points 1, 2, and 3
+    Args:
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
+        ref_point_3 (tm): Reference point 3
+    Returns:
+        float: Angle between points 1, 2, and 3 in 3D-Space
+    """
+    v1 = np.array([ref_point_1[0]-ref_point_2[0], ref_point_1[1]-ref_point_2[1], ref_point_1[2] - ref_point_2[2]])
+    #v1n = mr.mr.Normalize(v1)
     v1n = np.linalg.norm(v1)
-    v2 = np.array([p3[0]-p2[0], p3[1]-p2[1], p3[2] - p2[2]])
-    #v2n = mr.Normalize(v2)
+    v2 = np.array([ref_point_3[0]-ref_point_2[0], ref_point_3[1]-ref_point_2[1], ref_point_3[2] - ref_point_2[2]])
+    #v2n = mr.mr.Normalize(v2)
     v2n = np.linalg.norm(v2)
     res = np.clip(np.dot(v1, v2)/(v1n*v2n), -1, 1)
     #res = np.clip(np.dot(np.squeeze(v1n), np.squeeze(v2n)), -1, 1)
     res = AngleMod(math.acos(res))
     return res
 
-def AngleBetweenXY(p1, p2, p3):
-    """Short summary.
-
-    Args:
-        p1 (type): Description of parameter `p1`.
-        p2 (type): Description of parameter `p2`.
-        p3 (type): Description of parameter `p3`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    v1 = np.array([p2[0]-p1[0], p2[1]-p1[1]])
-    v1m = np.sqrt(v1[0] **2 + v1[1]**2)
-    v2 = np.array([p2[0]-p1[0], p2[1]-p1[1]])
-    v2m = np.sqrt(v2[0] **2 + v2[1]**2)
-    dot = np.dot(v1, v2)
-    res = np.arccos(dot/(v1m * v2m))
-    return res
-
-#Misc
-def GenForceWrench(loc, force, forcedir):
+#Wrench Operations
+def makeWrench(position_applied, force, force_direction_vector):
     """
     Generates a new wrench
     Args:
-        loc: relative location of wrench
-        force: magnitude of force applied (or mass if forcedir is a gravity vector)
-        forcedir: unit vector to apply force (or gravity)
+        position_applied: relative position ation of wrench
+        force: magnitude of force applied (or mass if force_direction_vector is a gravity vector)
+        force_direction_vector: unit vector to apply force (or gravity)
     Returns:
         wrench
     """
-    forcev = np.array(forcedir) * force #Force vector (negative Z)
-    t_wren = np.cross(loc[0:3].reshape((3)), forcev) #Calculate moment based on position and action
+    forcev = np.array(force_direction_vector) * force #Force vector (negative Z)
+    t_wren = np.cross(position_applied[0:3].reshape((3)), forcev) #Calculate moment based on position and action
     wrench = np.array([t_wren[0], t_wren[1], t_wren[2], forcev[0], forcev[1], forcev[2]]).reshape((6, 1)) #Create Complete Wrench
     return wrench
 
-def TransformWrenchFrame(wrench, wrenchFrame, newFrame):
+def transformWrenchFrame(wrench, old_wrench_frame, new_wrench_frame):
     """
     Translates one wrench frame to another
     Args:
         wrench: original wrench to be translated
-        wrenchFrame: the original frame that the wrench was in (tm)
-        newFrame: the new frame that the wrench *should* be in (tm)
+        old_wrench_frame: the original frame that the wrench was in (tm)
+        new_wrench_frame: the new frame that the wrench *should* be in (tm)
     Returns:
-        newWrench in the frame of newFrame
+        new Wrench in the frame of new_wrench_frame
     """
-    ref = GlobalToLocal(wrenchFrame, newFrame)
+    ref = GlobalToLocal(old_wrench_frame, new_wrench_frame)
     return  ref.Adjoint().T @ wrench
 
-def BoxSpatialInertia(m, l, w, h):
-    """Short summary.
-
+#Twists
+def twistToScrew(input_twist):
+    """
+    Converts a twist to a screw
     Args:
-        m (type): Description of parameter `m`.
-        l (type): Description of parameter `l`.
-        w (type): Description of parameter `w`.
-        h (type): Description of parameter `h`.
+        input_twist (ndarray): Twist
+    Returns:
+        ndarray: Screw representing twist
+    """
+    if (mr.Norm(input_twist[0:3])) == 0:
+        w = mr.Normalize(input_twist[0:6])
+        th = mr.Norm(input_twist[3:6])
+        q = np.array([0, 0, 0]).reshape((3, 1))
+        h = np.inf
+    else:
+        unit_twist = input_twist/mr.Norm(input_twist[0:3])
+        w = unit_twist[0:3].reshape((3))
+        v = unit_twist[3:6].reshape((3))
+        th = mr.Norm(input_twist[0:3])
+        q = np.cross(w, v)
+        h = (v.reshape((3, 1)) @ w.reshape((1, 3)))
+    return (w, th, q, h)
+
+def normalizeTwist(twist):
+    """
+    Normalize a Twist
+    Args:
+        tw (ndarray): Input twist
+    Returns:
+        ndarray: Normalized Twist
+    """
+    if mr.Norm(twist[0:3]) > 0:
+        twist_norm = twist/mr.Norm(twist[0:3])
+    else:
+        twist_norm = twist/mr.Norm(twist[3:6])
+    return twist_norm
+
+def twistFromTransform(input_transform):
+    """
+    Creates twist from transform (tm)
+    Args:
+        input_transform (tm): input transform
+    Returns:
+        ndarray: twist representing transform
+    """
+    transform_skew = mr.MatrixLog6(input_transform.TM)
+    return mr.se3ToVec(transform_skew)
+
+def transformFromTwist(input_twist):
+    """
+    Converts a twist to a transformation matrix
+    Args:
+        input_twist (ndarray): Input twist to be transformed
+    Returns:
+        tm: Transform represented by twist
+    """
+    input_twist = input_twist.reshape((6))
+    #print(tw)
+    tms = mr.VecTose3(input_twist)
+    tms = delMini(tms)
+    tmr = mr.MatrixExp6(tms)
+    return tm(tmr)
+
+def transformByVector(transform, vec):
+    """
+    Performs tv = TM*vec and removes the 1
+    Args:
+        transform (tm): transform to operate on
+        vec (ndarray): vector to multipy
 
     Returns:
-        type: Description of returned object.
-
+        ndarray: vector product
     """
-    Ixx = m*(w*w+h*h)/12
-    Iyy = m*(l*l+h*h)/12
-    Izz = m*(w*w+l*l)/12
-    Ib = np.diag((Ixx, Iyy, Izz))
 
-    Gbox = np.vstack((np.hstack((Ib, np.zeros((3, 3)))), np.hstack((np.zeros((3, 3)), m*np.identity((3))))))
-    return Gbox
+    transform_matrix = transform.TM
+    b = np.array([1.0])
+    n = np.concatenate((vec, b))
+    trvh = transform_matrix @ n
+    return trvh[0:3]
 
+#def RotationAroundVector(w, theta):
+#    r = np.identity(3)+math.sin(theta) * rp.skew(w)+(1-math.cos(theta)) * rp.skew(w) @ rp.skew(w)
+#    return r
+
+# Unit Vectors
 def unitSphere(num_points):
     """
     Generates a "unit sphere" with an approximate number of points
@@ -594,159 +559,39 @@ def unitSphere(num_points):
     a = 0
     e = -1
     for i in range(azr + 1):
+        arccos_e = np.arccos(np.clip(e, -1.0, 1.0))
+        sin_arccos_e = np.sin(arccos_e)
         for j in range(elr + 1):
-            x = np.cos(a) * np.sin(np.arccos(e))
-            y = np.sin(a) * np.sin(np.arccos(e))
-            z = np.cos(np.arccos(e))
+            x = np.cos(a) * sin_arccos_e
+            y = np.sin(a) * sin_arccos_e
+            z = np.cos(arccos_e)
             xyzcoords.append([x, y, z])
             azel.append([a, e])
-
             a = a + inc
         e = e + incb
         a = -1
 
     return xyzcoords, azel
 
-def TwistToScrew(S):
-    """Short summary.
 
+def getUnitVec(ref_point_1, ref_point_2, distance = 1.0):
+    """
+    Returns a vector of a given length pointed from point 1 to point 2
     Args:
-        S (type): Description of parameter `S`.
-
+        ref_point_1 (tm): Reference point 1
+        ref_point_2 (tm): Reference point 2
+        distance (Float): length of the returned vector. Defaults to 1
     Returns:
-        type: Description of returned object.
-
+        tm: transform representing vector
     """
-    if (Norm(S[0:3])) == 0:
-        w = mr.Normalize(S[0:6])
-        th = Norm(S[3:6])
-        q = np.array([0, 0, 0]).reshape((3, 1))
-        h = inf
-    else:
-        unitS = S/Norm(S[0:3])
-        w = unitS[0:3].reshape((3))
-        v = unitS[3:6].reshape((3))
-        th = Norm(S[0:3])
-        q = np.cross(w, v)
-        h = (v.reshape((3, 1)) @ w.reshape((1, 3)))
-    return (w, th, q, h)
-
-def Norm(V):
-    """Short summary.
-
-    Args:
-        V (type): Description of parameter `V`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    C = np.linalg.norm(V)
-    return C
-
-def NormalizeTwist(tw):
-    """Short summary.
-
-    Args:
-        tw (type): Description of parameter `tw`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    if Norm(tw[0:3]) > 0:
-        twn = tw/Norm(tw[0:3])
-    else:
-        twn = tw/norm(tw[3:6])
-    return twn
-
-def TwistFromTransform(tm):
-    """Short summary.
-
-    Args:
-        tm (type): Description of parameter `tm`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    tmskew = mr.MatrixLog6(tm.TM)
-    return mr.se3ToVec(tmskew)
-
-def TransformFromTwist(tw):
-    """Short summary.
-
-    Args:
-        tw (type): Description of parameter `tw`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    tw = tw.reshape((6))
-    #print(tw)
-    tms = mr.VecTose3(tw)
-    tms = delMini(tms)
-    tmr = mr.MatrixExp6(tms)
-    return tm(tmr)
-
-#def RotationAroundVector(w, theta):
-#    r = np.identity(3)+math.sin(theta) * rp.skew(w)+(1-math.cos(theta)) * rp.skew(w) @ rp.skew(w)
-#    return r
-
-def SetElements(data, inds, vals):
-    """Short summary.
-
-    Args:
-        data (type): Description of parameter `data`.
-        inds (type): Description of parameter `inds`.
-        vals (type): Description of parameter `vals`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    res = copy.copy(data)
-    for i in range(len(inds)):
-        res[inds[i]] = vals[i]
-    #res[inds] = vals
-    #for i in range (0,(inds.size-1)):
-    #    res[inds[i]] = vals[i]
-    return res
-
-def EKF(meant_1, covt_1, ctrlt, meast, gfn, hfn, dgdx, dgdu, dhdx, dhdv):
-    """
-    Extended Kalman Filter Iteration
-    Args:
-        meant_1:
-        covt_1:
-        ctrlt:
-        meast:
-        gfn:
-        hfn:
-        dgdx:
-        dgdu:
-        dhdx:
-        dhdv:
-    Returns:
-        meant:
-        covt:
-    """
-    predmeant = gfn(ctrlt, meant_1)
-    Gt = dgdx(ctrlt, meant_1)
-    Rt = dgdu(ctrlt, meant_1)
-    predcovt = Gt @ covt_1 @ Gt.conj().T + Rt
-    predmeast = hfn(predmeant)
-    Ht = dhdx(predmeant)
-    Qt = dhdv(predmeant)
-    Kt = predcovt @ Ht.conj().T @ ling.inv(Ht @ predcovt @ Ht.conj().T+Qt)
-    meant = predmeant + Kt @ (meast - predmeast)
-    covt = (np.identity((Kt*Ht).shape[0])-Kt @ Ht) @ predcovt
-
-    return meant, covt
+    v1 = np.array([ref_point_1[0], ref_point_1[1], ref_point_1[2]])
+    unit_b = (np.array([ref_point_2[0], ref_point_2[1], ref_point_2[2]]) - v1)
+    unit = unit_b / ling.norm(unit_b)
+    pos = v1 + (unit * distance)
+    return tm([pos[0], pos[1], pos[2], 0, 0, 0])
 
 #Jacobians
-def ChainJacobian(screws, theta):
+def chainJacobian(screws, theta):
     """
     Chain Jacobian
     Args:
@@ -757,32 +602,14 @@ def ChainJacobian(screws, theta):
     """
     jac = np.zeros((6, np.size(theta)))
     T = np.eye(4)
-    Jac[0:6, 0] = screws[0:6, 0]
+    jac[0:6, 0] = screws[0:6, 0]
 
     for i in range(1, np.size(theta)):
         T = T * TransformFromTwist(theta[i-1]*screws[1:6, i-1])
         jac[0:6, i] = mr.Adjoint(T)*screws[0:6, i]
     return jac
 
-def delMini(arr):
-    """
-    Deletes subarrays of dimension 1
-    Requires 2d array
-    Args:
-        arr: array to prune
-    Returns:
-        newarr: pruned array
-    """
-
-    s = arr.shape
-    newarr = np.zeros((s))
-    for i in range(s[0]):
-        for j in range(s[1]):
-            newarr[i, j] = arr[i, j]
-    return newarr
-
-
-def NumJac(f, x0, h):
+def numericalJacobian(f, x0, h):
     """
     Calculates a numerical jacobian
     Args:
@@ -808,27 +635,251 @@ def NumJac(f, x0, h):
     dfdx=dfdx.conj().T
     f(x0)
 
-    # Call the function with the initial input to reset state, if
-    # applicable.
-    #f(x0)
-
     return dfdx
 
-
-def getUnitVec(point_1, point_2, distance = 1.0):
+#Misc
+def boxSpatialInertia(m, l, w, h):
     """
-    Returns a unit vector for a given actuator
+    Calculates spatial inertial properties of a box
+
     Args:
-        point_1 (tm): Description of parameter `point_1`.
-        point_2 (tm): Description of parameter `point_2`.
-        distance (Float): Description of parameter `distance`.
-
+        m (float): mass of box
+        l (float): length of box
+        w (float): width of box
+        h (float): height of box
     Returns:
-        type: Description of returned object.
-
+        ndarray: spatial inertia matrix of box
     """
-    v1 = np.array([point_1[0], point_1[1], point_1[2]])
-    unit_b = (np.array([point_2[0], point_2[1], point_2[2]]) - v1)
-    unit = unit_b / ling.norm(unit_b)
-    pos = v1 + (unit * distance)
-    return tm([pos[0], pos[1], pos[2], 0, 0, 0])
+    Ixx = m*(w*w+h*h)/12
+    Iyy = m*(l*l+h*h)/12
+    Izz = m*(w*w+l*l)/12
+    Ib = np.diag((Ixx, Iyy, Izz))
+
+    Gbox = np.vstack((np.hstack((Ib, np.zeros((3, 3)))), np.hstack((np.zeros((3, 3)), m*np.identity((3))))))
+    return Gbox
+
+
+def delMini(arr):
+    """
+    Deletes subarrays of dimension 1
+    Requires 2d array
+    Args:
+        arr: array to prune
+    Returns:
+        newarr: pruned array
+    """
+
+    s = arr.shape
+    newarr = np.zeros((s))
+    for i in range(s[0]):
+        for j in range(s[1]):
+            newarr[i, j] = arr[i, j]
+    return newarr
+
+def setElements(data, inds, vals):
+    """
+    Sets the elements in data specified by inds with the values in vals
+
+    Args:
+        data (ndarray): data to edit
+        inds (ndarray): indexes of data to access
+        vals (ndarray): new values to insert into the data
+    Returns:
+        ndarray: modified data
+    """
+    res = data.copy()
+    for i in range(len(inds)):
+        res[inds[i]] = vals[i]
+    #res[inds] = vals
+    #for i in range (0,(inds.size-1)):
+    #    res[inds[i]] = vals[i]
+    return res
+
+# DEPRECATED FUNCTION HANDLES
+import traceback
+def LocalToGlobal(reference, rel):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(LocalToGlobal.__name__ + ' is deprecated, use ' + localToGlobal.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return localToGlobal(reference, rel)
+
+def GlobalToLocal(reference, rel):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(GlobalToLocal.__name__ + ' is deprecated, use ' + globalToLocal.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return globalToLocal(reference, rel)
+
+def PlaneFrom3Tms(ref_point_1, ref_point_2, ref_point_3):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(PlaneFrom3Tms.__name__ + ' is deprecated, use ' + planeFromThreePoints.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return planeFromThreePoints(ref_point_1, ref_point_2, ref_point_3)
+
+def PlaneTMSFromOne(ref_point_1):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(PlaneTMSFromOne.__name__ + ' is deprecated, use ' + planePointsFromTransform.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return planePointsFromTransform(ref_point_1)
+
+def Mirror(origin, mirror_plane):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(Mirror.__name__ + ' is deprecated, use ' + mirror.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return mirror(origin, mirror_plane)
+
+def TMMidRotAdjust(active_point, ref_point_1, ref_point_2, mode = 0):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TMMidRotAdjust.__name__ + ' is deprecated, use ' + adjustRotationToMidpoint.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return adjustRotationToMidpoint(active_point, ref_point_1, ref_point_2, mode = 0)
+
+def TMMidPointEx(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TMMidPointEx.__name__ + ' is deprecated, use ' + tmAvgMidpoint.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return tmAvgMidpoint(ref_point_1, ref_point_2)
+
+def TMMidPoint(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TMMidPoint.__name__ + ' is deprecated, use ' + tmInterpMidpoint.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return tmInterpMidpoint(ref_point_1, ref_point_2)
+
+def RotFromVec(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(RotFromVec.__name__ + ' is deprecated, use ' + rotationFromVector.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return rotationFromVector(ref_point_1, ref_point_2)
+
+def lookat(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(lookat.__name__ + ' is deprecated, use ' + lookAt.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return lookAt(ref_point_1, ref_point_2)
+
+def Error(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(Error.__name__ + ' is deprecated, use ' + poseError.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return poseError(ref_point_1, ref_point_2)
+
+def GeometricError(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(GeometricError.__name__ + ' is deprecated, use ' + geometricError.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return geometricError(ref_point_1, ref_point_2)
+
+def Distance(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(Distance.__name__ + ' is deprecated, use ' + distance.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return distance(ref_point_1, ref_point_2)
+
+def ArcDistance(ref_point_1, ref_point_2):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(ArcDistance.__name__ + ' is deprecated, use ' + arcDistance.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return arcDistance(ref_point_1, ref_point_2)
+
+def CloseGap(origin_point, goal_point, delta):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(CloseGap.__name__ + ' is deprecated, use ' + closeLinearGap.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return closeLinearGap(origin_point, goal_point, delta)
+
+def ArcGap(origin_point, goal_point, delta):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(ArcGap.__name__ + ' is deprecated, use ' + closeArcGap.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return closeArcGap(origin_point, goal_point, delta)
+
+def Deg2Rad(deg):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(Deg2Rad.__name__ + ' is deprecated, use ' + deg2Rad.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return deg2Rad(deg)
+
+def Rad2Deg(rad):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(Rad2Deg.__name__ + ' is deprecated, use ' + rad2Deg.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return rad2Deg(rad)
+
+def AngleMod(rad):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(AngleMod.__name__ + ' is deprecated, use ' + angleMod.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return angleMod(rad)
+
+def AngleBetween(ref_point_1, ref_point_2, ref_point_3):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(AngleBetween.__name__ + ' is deprecated, use ' + angleBetween.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return angleBetween(ref_point_1, ref_point_2, ref_point_3)
+
+def GenForceWrench(position_applied, force, force_direction_vector):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(GenForceWrench.__name__ + ' is deprecated, use ' + makeWrench.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return makeWrench(position_applied, force, force_direction_vector)
+
+def TransformWrenchFrame(wrench, old_wrench_frame, new_wrench_frame):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TransformWrenchFrame.__name__ + ' is deprecated, use ' + transformWrenchFrame.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return transformWrenchFrame(wrench, old_wrench_frame, new_wrench_frame)
+
+def TwistToScrew(input_twist):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TwistToScrew.__name__ + ' is deprecated, use ' + twistToScrew.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return twistToScrew(input_twist)
+
+def NormalizeTwist(twist):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(NormalizeTwist.__name__ + ' is deprecated, use ' + normalizeTwist.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return normalizeTwist(twist)
+
+def TwistFromTransform(input_transform):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TwistFromTransform.__name__ + ' is deprecated, use ' + twistFromTransform.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return twistFromTransform(input_transform)
+
+def TransformFromTwist(input_twist):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TransformFromTwist.__name__ + ' is deprecated, use ' + transformFromTwist.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return transformFromTwist(input_twist)
+
+def TrVec(transform, vec):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(TrVec.__name__ + ' is deprecated, use ' + transformByVector.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    traceback.print_stack(limit=2)
+    return transformByVector(transform, vec)
+
+def ChainJacobian(screws, theta):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(ChainJacobian.__name__ + ' is deprecated, use ' + chainJacobian.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return chainJacobian(screws, theta)
+
+def NumJac(f, x0, h):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(NumJac.__name__ + ' is deprecated, use ' + numericalJacobian.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return numericalJacobian(f, x0, h)
+
+def BoxSpatialInertia(m, l, w, h):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(BoxSpatialInertia.__name__ + ' is deprecated, use ' + boxSpatialInertia.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return boxSpatialInertia(m, l, w, h)
+
+def SetElements(data, inds, vals):
+    """Deprecation notice function. Please use indicated correct function"""
+    print(SetElements.__name__ + ' is deprecated, use ' + setElements.__name__ + ' instead')
+    traceback.print_stack(limit=2)
+    return setElements(data, inds, vals)

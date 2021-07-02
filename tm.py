@@ -1,51 +1,60 @@
 import modern_high_performance as mr
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import traceback
 
 class tm:
     """
     Class to represent and manipulate 3d transformations easily.
     Utilizes Euler Angles and 4x4 Transformation Matrices
     """
-    def __init__(self, initArr = np.eye((4))):
+    def __init__(self, initializer_array = np.eye((4))):
         """
         Initializes a new Transformation object
-        If no initArr is supplied, an identity transform is returned
-        initArr can be of the following types, with different behaviors
+        If no initializer_array is supplied, an identity transform is returned
+        initializer_array can be of the following types, with different behaviors
             1) tm: a copy of the tm object is returned
             2) len(3) list: a tm object representing an XYZ rotation is returned
             3) len(6) list: a tm object representing an XYZ translation and XYZ rotation is returned
             4) 4x4 transformation matrix: a tm object representing the given transform is returned
         Args:
-            initArr: Optional - data to generate new transformation
+            initializer_array: Optional - data to generate new transformation
         """
-        if hasattr(initArr, 'TM'):
+        if hasattr(initializer_array, 'TM'):
             #Returns a copy of the tm object
-            self.TM = initArr.TM.copy()
-            self.TAA = initArr.TAA.copy()
+            self.TM = initializer_array.TM.copy()
+            self.TAA = initializer_array.TAA.copy()
             return
-        elif isinstance(initArr, list):
+        elif isinstance(initializer_array, list):
             #Generates tm from list
-            if len(initArr) == 3:
-                self.TAA = np.array([0, 0, 0, initArr[0], initArr[1], initArr[2]])
+            if len(initializer_array) == 3:
+                self.TAA = np.array([0, 0, 0,
+                        initializer_array[0],
+                        initializer_array[1],
+                        initializer_array[2]])
             else:
-                self.TAA = np.array([initArr[0], initArr[1], initArr[2], initArr[3], initArr[4], initArr[5]])
+                self.TAA = np.array([initializer_array[0],
+                        initializer_array[1],
+                        initializer_array[2],
+                        initializer_array[3],
+                        initializer_array[4],
+                        initializer_array[5]])
             self.TAAtoTM()
             return
         else:
-            if len(initArr) == 6:
+            if len(initializer_array) == 6:
                 #Generates tm from numpy array
-                self.TAA = initArr.reshape((6, 1)).copy()
+                self.TAA = initializer_array.reshape((6, 1)).copy()
                 self.TAAtoTM()
                 return
-            elif (len(initArr) == 1):
-                if isinstance(initArr, np.ndarray):
-                    if isinstance(initArr[0], tm):
-                        self.TM = initArr[0].TM.copy()
+            elif (len(initializer_array) == 1):
+                if isinstance(initializer_array, np.ndarray):
+                    if isinstance(initializer_array[0], tm):
+                        self.TM = initializer_array[0].TM.copy()
                         self.TMtoTAA()
                         return
             else:
-                self.TransformSqueezedCopy(initArr)
+                self.transformSqueezedCopy(initializer_array)
                 self.TMtoTAA()
                 return
 
@@ -59,7 +68,7 @@ class tm:
         """
         return tm(init)
 
-    def TransformSqueezedCopy(self, TM):
+    def transformSqueezedCopy(self, transform_matrix):
         """
         In cases of dimension troubles, squeeze out the extra dimension
         Args:
@@ -70,7 +79,7 @@ class tm:
         self.TM = np.eye((4))
         for i in range(4):
             for j in range(4):
-                self.TM[i, j] = TM[i, j]
+                self.TM[i, j] = transform_matrix[i, j]
         return self.TM
 
     def getQuat(self):
@@ -81,13 +90,13 @@ class tm:
         """
         return R.from_euler('xyz', self.TAA[3:6].reshape((3)))
 
-    def setQuat(self, quat):
+    def setQuat(self, quaternion):
         """
         Sets TAA from quaternion
         Args:
             quat: input quaternion
         """
-        self.TAA[3:6] = R.from_quat(quat).as_euler('xyz')
+        self.TAA[3:6] = R.from_quat(quaternion).as_euler('xyz')
         self.TAAtoTM()
 
     def update(self):
@@ -101,7 +110,7 @@ class tm:
             self.TAAtoTM()
             self._transform_taa_old = np.copy(self.TAA)
 
-    def AngleMod(self):
+    def angleMod(self):
         """
         Truncates excessive rotations
         """
@@ -113,7 +122,7 @@ class tm:
         if refresh == 1:
             self.TAAtoTM()
 
-    def LeftHanded(self):
+    def leftHanded(self):
         """
         Converts to left handed representation, for interactions
         with programs that use this for whatever reason
@@ -129,7 +138,7 @@ class tm:
             -self.TAA[4]])
         return new_tm
 
-    def TripleUnit(self, lv=1):
+    def tripleUnit(self, lv=1):
         """
         Returns XYZ unit vectors based on current position
         Args:
@@ -185,7 +194,7 @@ class tm:
         Q = np.array([np.cos(self.getTheta()/2), sec[0], sec[1], sec[2]])
         return Q
 
-    def QuatToR(self, quat):
+    def tmFromQuaternion(self, quaternion):
         """
         Converts a quaternion to a euler angle tm representation
         Args:
@@ -193,9 +202,9 @@ class tm:
         Returns:
             tm object
         """
-        theta = 2 * np.arccos(quat[0])
+        theta = 2 * np.arccos(quaternion[0])
         if theta != 0:
-            w = quat[1:]/np.sin(theta/2)
+            w = quaternion[1:]/np.sin(theta/2)
         else:
             w = np.zeros((3))
         new = tm([w[0], w[1], w[2]])
@@ -222,7 +231,7 @@ class tm:
         ta = mr.so3ToVec(mr.MatrixLog3(tm))
         self.TAA = np.vstack((trans.reshape((3, 1)), (ta.reshape((3, 1)))))
     #Modern Robotics Ports
-    def Adjoint(self):
+    def adjoint(self):
         """
         Returns the adjoint representation of the 4x4 transformation matrix
         Returns:
@@ -230,7 +239,7 @@ class tm:
         """
         return mr.Adjoint(self.TM)
 
-    def Exp6(self):
+    def exp6(self):
         """
         Returns the matrix exponential of the TAA
         Returns:
@@ -400,7 +409,7 @@ class tm:
         """
         if isinstance(a, tm):
             return tm(np.linalg.lstsq(a.T(), self.T())[0].T)
-        elif isinstance(a, numpy.ndarray):
+        elif isinstance(a, np.ndarray):
             return tm(np.linalg.lstsq(a.T, self.T())[0].T)
         else:
             return tm(self.TAA // a)
@@ -627,3 +636,53 @@ class tm:
         return ("[ " + fst % (self.TAA[0, 0]) + ", "+ fst % (self.TAA[1, 0]) +
          ", "+ fst % (self.TAA[2, 0]) + ", "+ fst % (self.TAA[3, 0]) +
          ", "+ fst % (self.TAA[4, 0]) + ", "+ fst % (self.TAA[5, 0])+ " ]")
+
+    # Deprecated Function Handles
+    def TransformSqueezedCopy(self, transform_matrix):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.TransformSqueezedCopy.__name__ + ' is deprecated, use ' +
+                self.transformSqueezedCopy.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.transformSqueezedCopy(transform_matrix)
+
+    def AngleMod(self):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.AngleMod.__name__ + ' is deprecated, use ' +
+                self.angleMod.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.angleMod()
+
+    def LeftHanded(self):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.LeftHanded.__name__ + ' is deprecated, use ' +
+                self.leftHanded.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.leftHanded()
+
+    def TripleUnit(self, lv=1):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.TripleUnit.__name__ + ' is deprecated, use ' +
+                self.tripleUnit.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.tripleUnit(lv)
+
+    def QuatToR(self, quaternion):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.QuatToR.__name__ + ' is deprecated, use ' +
+                self.tmFromQuaternion.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.tmFromQuaternion(quaternion)
+
+    def Adjoint(self):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.Adjoint.__name__ + ' is deprecated, use ' +
+                self.adjoint.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.adjoint()
+
+    def Exp6(self):
+        """Deprecation notice function. Please use indicated correct function"""
+        print(self.Exp6.__name__ + ' is deprecated, use ' +
+                self.exp6.__name__ + ' instead')
+        traceback.print_stack(limit=2)
+        return self.exp6()
