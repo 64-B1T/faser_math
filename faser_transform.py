@@ -215,21 +215,23 @@ class tm:
         """
         Converts the TAA representation to TM representation to update the object
         """
-        self.TAA = self.TAA.reshape((6))
-        mres = mr.MatrixExp3(mr.VecToso3(self.TAA[3:6]))
-        #return mr.RpToTrans(mres, self.TAA[0:3])
         self.TAA = self.TAA.reshape((6, 1))
+        #self.TAA = self.TAA.reshape((6))
+        mres = mr.MatrixExp3(mr.VecToso3(self.TAA[3:6].flatten()))
+        #return mr.RpToTrans(mres, self.TAA[0:3])
+        #self.TAA = self.TAA.reshape((6, 1))
         self.TM = np.vstack((np.hstack((mres, self.TAA[0:3])), np.array([0, 0, 0, 1])))
         #self.AngleMod()
+
         #print(tm)
 
     def TMtoTAA(self):
         """
         Converts the TM representation to TAA representation and updates the object
         """
-        tm, trans =  mr.TransToRp(self.TM)
-        ta = mr.so3ToVec(mr.MatrixLog3(tm))
-        self.TAA = np.vstack((trans.reshape((3, 1)), (ta.reshape((3, 1)))))
+        rotation, transformation =  mr.TransToRp(self.TM)
+        rotation_euler = mr.so3ToVec(mr.MatrixLog3(rotation))
+        self.TAA = np.vstack((transformation.reshape((3, 1)), (rotation_euler.reshape((3, 1)))))
     #Modern Robotics Ports
     def adjoint(self):
         """

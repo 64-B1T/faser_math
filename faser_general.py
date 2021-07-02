@@ -3,7 +3,7 @@ import faser_high_performance as mr
 import numpy as np
 import scipy as sci
 import scipy.linalg as ling
-from tm import tm
+from faser_transform import tm
 
 #TRANSFORMATION MATRIX MANIPULATIONS
 def TAAtoTM(taa_format):
@@ -30,9 +30,9 @@ def TMtoTAA(transformation_matrix):
     Returns:
         TAA representation
     """
-    _, trans =  mr.TransToRp(transformation_matrix)
-    ta = mr.so3ToVec(mr.MatrixLog3(transformation_matrix))
-    return np.vstack((trans.reshape((3, 1)), AngleMod(ta.reshape((3, 1)))))
+    rotation_matrix, position =  mr.TransToRp(transformation_matrix)
+    rotation_array = mr.so3ToVec(mr.MatrixLog3(rotation_matrix))
+    return np.vstack((position.reshape((3, 1)), angleMod(rotation_array.reshape((3, 1)))))
 
 #Change of Frames
 def localToGlobal(reference, rel):
