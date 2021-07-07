@@ -25,27 +25,43 @@ class tm:
             self.TM = initializer_array.TM.copy()
             self.TAA = initializer_array.TAA.copy()
             return
-        elif isinstance(initializer_array, list):
+        init_arr_len = len(initializer_array)
+        if isinstance(initializer_array, list):
             #Generates tm from list
-            if len(initializer_array) == 3:
+            if init_arr_len == 3:
                 self.TAA = np.array([0, 0, 0,
                         initializer_array[0],
                         initializer_array[1],
                         initializer_array[2]])
-            else:
+                self.TAAtoTM()
+                return
+            elif init_arr_len == 6:
                 self.TAA = np.array([initializer_array[0],
                         initializer_array[1],
                         initializer_array[2],
                         initializer_array[3],
                         initializer_array[4],
                         initializer_array[5]])
-            self.TAAtoTM()
-            return
+                self.TAAtoTM()
+                return
+            else:
+                self.TAA = np.array([initializer_array[0],
+                        initializer_array[1],
+                        initializer_array[2],
+                        0,
+                        0,
+                        0])
+                self.setQuat(initializer_array[3:7])
+                return
         else:
-            if len(initializer_array) == 6:
+            if init_arr_len == 6:
                 #Generates tm from numpy array
                 self.TAA = initializer_array.reshape((6, 1)).copy()
                 self.TAAtoTM()
+                return
+            elif init_arr_len == 7:
+                self.TAA = initializer_array.reshape((6, 1)).copy()
+                self.setQuat(initializer_array[3:])
                 return
             elif (len(initializer_array) == 1):
                 if isinstance(initializer_array, np.ndarray):
@@ -88,7 +104,7 @@ class tm:
         Returns:
             quaternion from euler
         """
-        return R.from_euler('xyz', self.TAA[3:6].reshape((3)))
+        return R.from_matrix(self.TM[0:3, 0:3]).as_quat()
 
     def setQuat(self, quaternion):
         """
@@ -96,8 +112,8 @@ class tm:
         Args:
             quat: input quaternion
         """
-        self.TAA[3:6] = R.from_quat(quaternion).as_euler('xyz')
-        self.TAAtoTM()
+        self.TM[0:3, 0:3] = R.from_quat(quaternion).as_matrix()
+        self.TMtoTAA()
 
     def update(self):
         """
@@ -148,17 +164,17 @@ class tm:
             vec2: vector Y
             vec3: vector Z
         """
-        xvec = np.zeros(6)
-        yvec = np.zeros(6)
-        zvec = np.zeros(6)
+        xvec = np.zeros((6, 1))
+        yvec = np.zeros((6, 1))
+        zvec = np.zeros((6, 1))
 
-        xvec[0:3] = self.TM[0:3, 0].flatten()
-        yvec[0:3] = self.TM[0:3, 1].flatten()
-        zvec[0:3] = self.TM[0:3, 2].flatten()
+        xvec[0:3, 0] = self.TM[0:3, 0]
+        yvec[0:3, 0] = self.TM[0:3, 1]
+        zvec[0:3, 0] = self.TM[0:3, 2]
 
-        vec1 = self + tm(xvec*lv)
-        vec2 = self + tm(yvec*lv)
-        vec3 = self + tm(zvec*lv)
+        vec1 = tm(self.TAA + xvec*lv)
+        vec2 = tm(self.TAA + yvec*lv)
+        vec3 = tm(self.TAA + zvec*lv)
 
         return vec1, vec2, vec3
 
@@ -183,33 +199,6 @@ class tm:
             np.array([self.TM[2, 1]-self.TM[1, 2], self.TM[0, 2]
             -self.TM[2, 0], self.TM[1, 0] -self.TM[0, 1]]))
 
-    def getQuaternion(self):
-        """
-        getQuaterion according to murray definitions
-        Returns:
-            Quaternion Representation
-        """
-        #Q = (cos(theta/2), wsin(\theta/2))
-        sec = self.getOmega()*np.sin(self.getTheta()/2)
-        Q = np.array([np.cos(self.getTheta()/2), sec[0], sec[1], sec[2]])
-        return Q
-
-    def tmFromQuaternion(self, quaternion):
-        """
-        Converts a quaternion to a euler angle tm representation
-        Args:
-            qaut: Quaternion
-        Returns:
-            tm object
-        """
-        theta = 2 * np.arccos(quaternion[0])
-        if theta != 0:
-            w = quaternion[1:]/np.sin(theta/2)
-        else:
-            w = np.zeros((3))
-        new = tm([w[0], w[1], w[2]])
-        print(new)
-
 
     def TAAtoTM(self):
         """
@@ -232,6 +221,7 @@ class tm:
         rotation, transformation =  mr.TransToRp(self.TM)
         rotation_euler = mr.so3ToVec(mr.MatrixLog3(rotation))
         self.TAA = np.vstack((transformation.reshape((3, 1)), (rotation_euler.reshape((3, 1)))))
+
     #Modern Robotics Ports
     def adjoint(self):
         """
