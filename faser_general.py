@@ -857,7 +857,6 @@ def TrVec(transform, vec):
     """Deprecation notice function. Please use indicated correct function"""
     print(TrVec.__name__ + ' is deprecated, use ' + transformByVector.__name__ + ' instead')
     traceback.print_stack(limit=2)
-    traceback.print_stack(limit=2)
     return transformByVector(transform, vec)
 
 def ChainJacobian(screws, theta):
