@@ -540,6 +540,24 @@ def transformByVector(transform, vec):
 #    return r
 
 # Unit Vectors
+def fiboSphere(num_points):
+    """
+    Create Fibonacci points on the surface of a sphere
+    #https://stackoverflow.com/questions/9600801/evenly-distributing-n-points-on-a-sphere
+    Args:
+        num_points: number of points
+    Returns:
+        xyzcoords: points in cartesian coordinates
+    """
+    indices = np.arange(0, num_points, dtype=float) + 0.5
+
+    phi = np.arccos(1 - 2*indices/num_points)
+    theta = np.pi * (1 + 5**0.5) * indices
+
+    x, y, z = np.cos(theta) * np.sin(phi), np.sin(theta) * np.sin(phi), np.cos(phi);
+    xyzcoords = np.array([x, y, z]).T
+    return xyzcoords
+
 def unitSphere(num_points):
     """
     Generates a "unit sphere" with an approximate number of points
