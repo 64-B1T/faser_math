@@ -249,7 +249,7 @@ def geometricError(ref_point_1, ref_point_2):
         tm: geometric error
 
     """
-    return GlobalToLocal(ref_point_2, ref_point_1)
+    return globalToLocal(ref_point_2, ref_point_1)
 
 def distance(ref_point_1, ref_point_2):
     """
@@ -282,7 +282,7 @@ def arcDistance(ref_point_1, ref_point_2):
         float: arc distance between two points
 
     """
-    geo_error = GlobalToLocal(ref_point_1, ref_point_2)
+    geo_error = globalToLocal(ref_point_1, ref_point_2)
     d = math.sqrt(geo_error[0]**2 + geo_error[1]**2 + geo_error[2]**2 + geo_error[3]**2 +geo_error[4]**2 + geo_error[5]**2)
     return d
 
@@ -452,7 +452,7 @@ def transformWrenchFrame(wrench, old_wrench_frame, new_wrench_frame):
     Returns:
         new Wrench in the frame of new_wrench_frame
     """
-    ref = GlobalToLocal(old_wrench_frame, new_wrench_frame)
+    ref = globalToLocal(old_wrench_frame, new_wrench_frame)
     return  ref.Adjoint().T @ wrench
 
 #Twists
