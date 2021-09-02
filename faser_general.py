@@ -453,7 +453,7 @@ def transformWrenchFrame(wrench, old_wrench_frame, new_wrench_frame):
         new Wrench in the frame of new_wrench_frame
     """
     ref = globalToLocal(old_wrench_frame, new_wrench_frame)
-    return  ref.Adjoint().T @ wrench
+    return  ref.adjoint().T @ wrench
 
 #Twists
 def twistToScrew(input_twist):
